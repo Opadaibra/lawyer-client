@@ -1,0 +1,183 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../controllers/auth_controller.dart';
+import '../../app/routes/app_routes.dart';
+import '../../core/theme/app_theme.dart';
+import '../widgets/custom_app_bar.dart';
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Get.find<AuthController>();
+
+    return Scaffold(
+      appBar: CustomAppBar(
+        title: 'profile'.tr,
+        showNotification: false,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Profile header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppTheme.primaryDark, AppTheme.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 48,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: Text(
+                      auth.userName.isNotEmpty
+                          ? auth.userName[0].toUpperCase()
+                          : 'L',
+                      style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    auth.userName,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    auth.userEmail,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            
+            // User Menu Options
+            _MenuTile(
+              icon: Icons.people_outline,
+              label: 'team'.tr,
+              onTap: () => Get.toNamed(AppRoutes.team),
+            ),
+            
+            _MenuTile(
+              icon: Icons.business_outlined,
+              label: 'office_info'.tr,
+              onTap: () => Get.toNamed(AppRoutes.officeInfo),
+            ),
+            
+            _MenuTile(
+              icon: Icons.person_outline,
+              label: 'profile'.tr,
+              onTap: () {
+                // Show profile info in a dialog or a simple page
+                _showProfileInfo(context, auth);
+              },
+            ),
+            
+            const Divider(height: 32),
+            
+            _MenuTile(
+              icon: Icons.logout,
+              label: 'logout'.tr,
+              color: Colors.red,
+              onTap: () => _confirmLogout(auth),
+            ),
+
+            const SizedBox(height: 32),
+            const Text(
+              'إدارة مكتب المحاماة v1.0.0',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProfileInfo(BuildContext context, AuthController auth) {
+    Get.dialog(
+      AlertDialog(
+        title: Text('profile'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _InfoRow(label: 'name'.tr, value: auth.userName),
+            const SizedBox(height: 8),
+            _InfoRow(label: 'email'.tr, value: auth.userEmail),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: Get.back, child: Text('confirm'.tr)),
+        ],
+      ),
+    );
+  }
+
+  void _confirmLogout(AuthController auth) {
+    Get.dialog(AlertDialog(
+      title: Text('logout'.tr),
+      content: Text('are_you_sure'.tr),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+        ElevatedButton(
+          onPressed: () {
+            Get.back();
+            auth.logout();
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: Text('logout'.tr),
+        ),
+      ],
+    ));
+  }
+}
+
+class _MenuTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _MenuTile({required this.icon, required this.label, required this.onTap, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: color ?? AppTheme.primary),
+      title: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+      onTap: onTap,
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+}
