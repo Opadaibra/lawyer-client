@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../data/models/case_model.dart';
+import '../../../data/models/task_model.dart';
 import '../../../data/services/api_service.dart';
+import '../../../data/services/notification_service.dart';
+import '../../../controllers/notification_controller.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
@@ -37,6 +40,14 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
         cases.value = response
             .map((e) => CaseModel.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
+      }
+      final tasks = <TaskModel>[];
+      for (final c in cases) {
+        tasks.addAll(c.tasks);
+      }
+      await NotificationService.checkTaskReminders(tasks);
+      if (Get.isRegistered<NotificationController>()) {
+        Get.find<NotificationController>().loadNotifications();
       }
     } catch (e) {
       Get.snackbar('خطأ', e.toString().replaceFirst('Exception: ', ''),
@@ -96,6 +107,48 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
                       ],
                     ),
                   ),
+                  Obx(() {
+                    final notifCtrl = Get.find<NotificationController>();
+                    final count = notifCtrl.unreadCount.value;
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_outlined,
+                              color: Colors.white),
+                          tooltip: 'notifications'.tr,
+                          onPressed: () =>
+                              Get.toNamed(AppRoutes.notifications),
+                        ),
+                        if (count > 0)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 14,
+                                minHeight: 14,
+                              ),
+                              child: Text(
+                                count > 99 ? '99+' : '$count',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  }),
                   IconButton(
                     icon: const Icon(Icons.logout, color: Colors.white),
                     tooltip: 'تسجيل الخروج',

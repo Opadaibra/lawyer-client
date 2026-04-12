@@ -10,6 +10,7 @@ import '../../views/screens/clients/client_form_screen.dart';
 import '../../views/screens/cases/cases_screen.dart';
 import '../../views/screens/cases/case_detail_screen.dart';
 import '../../views/screens/cases/case_form_screen.dart';
+import '../../views/screens/sessions/all_sessions_screen.dart';
 import '../../views/screens/tasks/tasks_screen.dart';
 import '../../views/screens/tasks/task_detail_screen.dart';
 import '../../views/screens/tasks/task_form_screen.dart';
@@ -49,6 +50,7 @@ class AppPages {
     GetPage(name: AppRoutes.cases, page: () => const CasesScreen()),
     GetPage(name: AppRoutes.caseDetail, page: () => const CaseDetailScreen()),
     GetPage(name: AppRoutes.caseForm, page: () => const CaseFormScreen()),
+    GetPage(name: AppRoutes.allSessions, page: () => const AllSessionsScreen()),
     // Tasks
     GetPage(name: AppRoutes.tasks, page: () => const TasksScreen()),
     GetPage(name: AppRoutes.taskDetail, page: () => const TaskDetailScreen()),

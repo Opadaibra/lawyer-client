@@ -73,7 +73,7 @@ class CaseController extends GetxController {
 
       await fetchCases();
       Get.back();
-      _showSuccess('Case created / تم إنشاء القضية');
+      _showSuccess('case_created'.tr);
       return true;
     } catch (e) {
       _showError(e);
@@ -91,7 +91,7 @@ class CaseController extends GetxController {
           '${AppConstants.cases}/$id', caseModel.toCreateJson());
       await fetchCases();
       Get.back();
-      _showSuccess('Case updated / تم تحديث القضية');
+      _showSuccess('case_updated'.tr);
       return true;
     } catch (e) {
       _showError(e);
@@ -106,7 +106,7 @@ class CaseController extends GetxController {
     try {
       await _api.delete('${AppConstants.cases}/$id');
       cases.removeWhere((c) => c.id == id);
-      _showSuccess('Case deleted / تم حذف القضية');
+      _showSuccess('case_deleted'.tr);
       return true;
     } catch (e) {
       _showError(e);
@@ -119,7 +119,7 @@ class CaseController extends GetxController {
     try {
       await _api.post('${AppConstants.cases}/$id/archive');
       await fetchCases();
-      _showSuccess('Case archived / تم أرشفة القضية');
+      _showSuccess('case_archived'.tr);
     } catch (e) {
       _showError(e);
     }
@@ -129,7 +129,7 @@ class CaseController extends GetxController {
     try {
       await _api.post('${AppConstants.cases}/$id/unarchive');
       await fetchCases();
-      _showSuccess('Case unarchived / تم إلغاء أرشفة القضية');
+      _showSuccess('case_unarchived'.tr);
     } catch (e) {
       _showError(e);
     }
@@ -166,7 +166,7 @@ class CaseController extends GetxController {
     try {
       await _api.delete('/sessions/$id');
       await fetchSessions(caseId);
-      _showSuccess('Session deleted / تم حذف الجلسة');
+      _showSuccess('session_deleted'.tr);
     } catch (e) {
       _showError(e);
     }
@@ -201,7 +201,7 @@ class CaseController extends GetxController {
     try {
       await _api.delete('/notes/$id');
       await fetchNotes(caseId);
-      _showSuccess('Note deleted / تم حذف الملاحظة');
+      _showSuccess('note_deleted'.tr);
     } catch (e) {
       _showError(e);
     }
@@ -236,24 +236,68 @@ class CaseController extends GetxController {
     try {
       await _api.delete('/expenses/$id');
       await fetchExpenses(caseId);
-      _showSuccess('Expense deleted / تم حذف المصروف');
+      _showSuccess('expense_deleted'.tr);
     } catch (e) {
       _showError(e);
     }
   }
 
-  // Fees
+  // Fees — يدعم `data` كقائمة أو ككائن { total_fees, total_paid, fees_records }
   Future<void> fetchFees(int caseId) async {
     try {
-      final response = await _api.getList('${AppConstants.cases}/$caseId/fees');
-      final list = _parseList(response);
-      final listModels = list.map((e) => FeeModel.fromJson(e)).toList();
+      final response = await _api.get('${AppConstants.cases}/$caseId/fees');
+      final raw = response['data'];
+      double? agreed;
+      double? paid;
+      List<dynamic> listRaw = [];
+
+      if (raw is List) {
+        listRaw = raw;
+      } else if (raw is Map) {
+        final m = Map<String, dynamic>.from(raw);
+        agreed = _parseMoney(m['total_fees']);
+        paid = _parseMoney(m['total_paid']);
+        final rec = m['fees_records'];
+        if (rec is List) {
+          listRaw = rec;
+        }
+      }
+
+      final listModels = listRaw
+          .map((e) => FeeModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
       if (selectedCase.value?.id == caseId) {
-        selectedCase.value = selectedCase.value!.copyWith(fees: listModels);
+        selectedCase.value = selectedCase.value!.copyWith(
+          fees: listModels,
+          feesApiAgreedTotal: agreed,
+          feesApiPaidTotal: paid,
+        );
       }
     } catch (e) {
       _showError(e);
     }
+  }
+
+  double _parseMoney(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  /// إجمالي الأتعاب والمسدّد من `GET .../cases/{id}/fees` (لعرض النموذج).
+  Future<Map<String, double>?> fetchFeesTotals(int caseId) async {
+    try {
+      final response = await _api.get('${AppConstants.cases}/$caseId/fees');
+      final raw = response['data'];
+      if (raw is Map) {
+        final m = Map<String, dynamic>.from(raw);
+        return {
+          'agreed': _parseMoney(m['total_fees']),
+          'paid': _parseMoney(m['total_paid']),
+        };
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<bool> addFee(int caseId, Map<String, dynamic> data) async {
@@ -271,7 +315,7 @@ class CaseController extends GetxController {
     try {
       await _api.delete('/fees/$id');
       await fetchFees(caseId);
-      _showSuccess('Fee record deleted / تم حذف السجل');
+      _showSuccess('fee_deleted'.tr);
     } catch (e) {
       _showError(e);
     }
@@ -304,13 +348,14 @@ class CaseController extends GetxController {
   }
 
   void _showError(dynamic e) {
-    Get.snackbar('Error / خطأ',
-        e.toString().replaceFirst('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar(
+      'error'.tr,
+      e.toString().replaceFirst('Exception: ', ''),
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   void _showSuccess(String msg) {
-    Get.snackbar('Success / نجاح', msg,
-        snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar('success'.tr, msg, snackPosition: SnackPosition.BOTTOM);
   }
 }

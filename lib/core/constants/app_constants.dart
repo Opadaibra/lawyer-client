@@ -29,6 +29,13 @@ class AppConstants {
 
   // Client portal
   static const String clientPortal = '/client-portal/cases';
+  /// إشعارات الموكل فقط (بوابة الموكل)
+  static const String clientPortalNotifications = '/client-portal/notifications';
+  /// ملخص أتعاب الموكل وسجلاتها
+  static const String clientPortalFees = '/client-portal/fees';
+
+  /// إشعارات المستخدم الحالي (من قاعدة البيانات)
+  static const String notifications = '/notifications';
 
   /// مورد المكتب: GET / POST / PATCH (غالباً PATCH على `/offices/{id}`)
   static const String offices = '/offices';
@@ -38,7 +45,6 @@ class AppConstants {
   static const String userKey = 'user_data';
   static const String themeKey = 'theme_mode';
   static const String localeKey = 'locale';
-  static const String notificationsKey = 'notifications';
 
   // Task statuses
   static const List<String> taskStatuses = [

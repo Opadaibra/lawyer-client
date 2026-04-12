@@ -5,6 +5,10 @@ class SessionModel {
   final String decisions;
   final String? notes;
   final String? createdAt;
+  /// من `GET /cases/all-sessions` عند وجود `case_file`
+  final String? caseNumber;
+  final String? court;
+  final String? clientName;
 
   SessionModel({
     required this.id,
@@ -13,16 +17,41 @@ class SessionModel {
     required this.decisions,
     this.notes,
     this.createdAt,
+    this.caseNumber,
+    this.court,
+    this.clientName,
   });
 
-  factory SessionModel.fromJson(Map<String, dynamic> json) => SessionModel(
-        id: json['id'] as int? ?? 0,
-        caseId: json['case_file_id'] as int? ?? json['case_id'] as int? ?? 0,
-        date: json['date'] as String? ?? '',
-        decisions: json['decisions'] as String? ?? '',
-        notes: json['notes'] as String?,
-        createdAt: json['created_at'] as String?,
-      );
+  factory SessionModel.fromJson(Map<String, dynamic> json) {
+    var caseId = json['case_file_id'] as int? ?? json['case_id'] as int? ?? 0;
+    String? caseNumber;
+    String? court;
+    String? clientName;
+
+    final cf = json['case_file'];
+    if (cf is Map) {
+      final cfm = Map<String, dynamic>.from(cf);
+      if (cfm['id'] != null) caseId = (cfm['id'] as num).toInt();
+      caseNumber = cfm['case_number'] as String?;
+      court = cfm['court'] as String?;
+      final cl = cfm['client'];
+      if (cl is Map) {
+        clientName = cl['name'] as String?;
+      }
+    }
+
+    return SessionModel(
+      id: json['id'] as int? ?? 0,
+      caseId: caseId,
+      date: json['date'] as String? ?? '',
+      decisions: json['decisions'] as String? ?? '',
+      notes: json['notes'] as String?,
+      createdAt: json['created_at'] as String?,
+      caseNumber: caseNumber,
+      court: court,
+      clientName: clientName,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -31,6 +60,9 @@ class SessionModel {
         'decisions': decisions,
         'notes': notes,
         'created_at': createdAt,
+        'case_number': caseNumber,
+        'court': court,
+        'client_name': clientName,
       };
 }
 
@@ -129,14 +161,21 @@ class FeeModel {
     this.createdAt,
   });
 
-  factory FeeModel.fromJson(Map<String, dynamic> json) => FeeModel(
-        id: json['id'] as int? ?? 0,
-        caseId: json['case_id'] as int? ?? 0,
-        date: json['date'] as String? ?? '',
-        value: _toDouble(json['value']),
-        notes: json['notes'] as String?,
-        createdAt: json['created_at'] as String?,
-      );
+  factory FeeModel.fromJson(Map<String, dynamic> json) {
+    var cid = json['case_id'] as int? ?? json['case_file_id'] as int? ?? 0;
+    final cf = json['case_file'];
+    if (cf is Map && cf['id'] != null) {
+      cid = (cf['id'] as num).toInt();
+    }
+    return FeeModel(
+      id: json['id'] as int? ?? 0,
+      caseId: cid,
+      date: json['date'] as String? ?? '',
+      value: _toDouble(json['value']),
+      notes: json['notes'] as String?,
+      createdAt: json['created_at'] as String?,
+    );
+  }
 
   static double _toDouble(dynamic v) {
     if (v == null) return 0.0;

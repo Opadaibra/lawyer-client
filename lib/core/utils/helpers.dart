@@ -28,32 +28,79 @@ class AppHelpers {
   static String formatDateTime(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '---';
     try {
-      final date = DateTime.parse(dateStr).toLocal();
+      final normalized = normalizeApiDateString(dateStr) ?? dateStr;
+      final date = DateTime.parse(normalized).toUtc().toLocal();
       return DateFormat('dd MMM yyyy – HH:mm').format(date);
     } catch (_) {
       return dateStr;
     }
   }
 
+  /// تحليل تاريخ السيرفر كـ UTC (يتجنب فرق التوقيت عند غياب Z في النص).
+  static DateTime parseApiDateTimeUtc(dynamic raw) {
+    final n = normalizeApiDateString(raw);
+    if (n == null || n.isEmpty) return DateTime.now().toUtc();
+    try {
+      return DateTime.parse(n).toUtc();
+    } catch (_) {
+      return DateTime.now().toUtc();
+    }
+  }
+
+  /// عرض لحظة UTC بتوقيت الجهاز المحلي.
+  static String formatDateTimeLocalFromUtc(DateTime utcInstant) {
+    return DateFormat('dd MMM yyyy – HH:mm').format(utcInstant.toLocal());
+  }
+
+  /// تطبيع سلسلة التاريخ القادمة من الـ API لمقارنة دقيقة (UTC).
+  static String? normalizeApiDateString(dynamic raw) {
+    if (raw == null) return null;
+    final s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    if (s.endsWith('Z')) return s;
+    if (RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(s)) return s;
+    if (s.contains('T')) return '${s}Z';
+    return s;
+  }
+
+  /// لحظة الاستحقاق كـ UTC (للمقارنة مع DateTime.now().toUtc()).
+  static DateTime? dueInstantUtc(String? dateStr) {
+    final n = normalizeApiDateString(dateStr);
+    if (n == null) return null;
+    try {
+      return DateTime.parse(n).toUtc();
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Check if a date is overdue
   static bool isOverdue(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return false;
-    try {
-      final date = DateTime.parse(dateStr);
-      return date.isBefore(DateTime.now());
-    } catch (_) {
-      return false;
-    }
+    final due = dueInstantUtc(dateStr);
+    if (due == null) return false;
+    return due.isBefore(DateTime.now().toUtc());
   }
 
   /// Days until a date
   static int daysUntil(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return 0;
-    try {
-      final date = DateTime.parse(dateStr);
-      return date.difference(DateTime.now()).inDays;
-    } catch (_) {
-      return 0;
+    final due = dueInstantUtc(dateStr);
+    if (due == null) return 0;
+    return due.difference(DateTime.now().toUtc()).inDays;
+  }
+
+  /// حالة المهمة للعرض (عربي فقط)
+  static String taskStatusArabic(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'معلقة';
+      case 'in_progress':
+        return 'جارية';
+      case 'completed':
+        return 'مكتملة';
+      case 'overdue':
+        return 'متأخرة';
+      default:
+        return status.replaceAll('_', ' ');
     }
   }
 

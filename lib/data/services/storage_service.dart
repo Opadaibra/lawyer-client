@@ -43,17 +43,6 @@ class StorageService {
   static Future<bool> setLocale(String locale) =>
       prefs.setString(AppConstants.localeKey, locale);
 
-  // Notifications (stored as JSON array)
-  static List<Map<String, dynamic>> getNotifications() {
-    final data = prefs.getString(AppConstants.notificationsKey);
-    if (data == null) return [];
-    final list = jsonDecode(data) as List<dynamic>;
-    return list.cast<Map<String, dynamic>>();
-  }
-
-  static Future<bool> setNotifications(List<Map<String, dynamic>> items) =>
-      prefs.setString(AppConstants.notificationsKey, jsonEncode(items));
-
   // Clear all
   static Future<bool> clearAll() => prefs.clear();
 

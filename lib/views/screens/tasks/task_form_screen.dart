@@ -37,9 +37,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       _status = _editTask!.status;
       _selectedCaseId = _editTask!.caseFileId;
       if (_editTask!.dueDate != null) {
-        try {
-          _dueDate = DateTime.parse(_editTask!.dueDate!).toLocal();
-        } catch (_) {}
+        final dueUtc = AppHelpers.dueInstantUtc(_editTask!.dueDate);
+        if (dueUtc != null) {
+          _dueDate = dueUtc.toLocal();
+        }
       }
     } else if (args?['caseId'] != null) {
       _selectedCaseId = args!['caseId'] as int;
@@ -109,7 +110,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: _isEditing ? 'Edit Task / تعديل المهمة' : 'New Task / مهمة جديدة',
+        title: _isEditing ? 'task_edit_title'.tr : 'new_task'.tr,
         showNotification: false,
       ),
       body: SingleChildScrollView(
@@ -118,18 +119,17 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // Case dropdown (optional)
               Obx(() {
                 final cases = caseCtrl.cases;
                 return DropdownButtonFormField<int>(
                   value: _selectedCaseId,
-                  decoration: const InputDecoration(
-                    labelText: 'Case / القضية (Optional)',
-                    prefixIcon: Icon(Icons.folder_outlined),
+                  decoration: InputDecoration(
+                    labelText: 'task_form_case_optional'.tr,
+                    prefixIcon: const Icon(Icons.folder_outlined),
                   ),
                   items: [
-                    const DropdownMenuItem<int>(
-                        value: null, child: Text('No case / بدون قضية')),
+                    DropdownMenuItem<int>(
+                        value: null, child: Text('no_case_linked'.tr)),
                     ...cases.map((c) => DropdownMenuItem(
                           value: c.id,
                           child: Text(c.caseNumber),
@@ -141,24 +141,24 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Task Title / عنوان المهمة *',
-                  prefixIcon: Icon(Icons.task_outlined),
+                decoration: InputDecoration(
+                  labelText: 'task_title_label'.tr,
+                  prefixIcon: const Icon(Icons.task_outlined),
                 ),
-                validator: (v) => AppValidators.required(v, fieldName: 'Title'),
+                validator: (v) =>
+                    AppValidators.required(v, fieldName: 'field_title_required'.tr),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descCtrl,
                 maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Description / الوصف',
-                  prefixIcon: Icon(Icons.description_outlined),
+                decoration: InputDecoration(
+                  labelText: 'task_description'.tr,
+                  prefixIcon: const Icon(Icons.description_outlined),
                   alignLabelWithHint: true,
                 ),
               ),
               const SizedBox(height: 16),
-              // Due date picker
               GestureDetector(
                 onTap: _pickDate,
                 child: Container(
@@ -177,8 +177,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                       Expanded(
                         child: Text(
                           _dueDate != null
-                              ? AppHelpers.formatDateTime(_dueDate!.toIso8601String())
-                              : 'Due Date & Time / تاريخ ووقت الاستحقاق',
+                              ? AppHelpers.formatDateTime(
+                                  _dueDate!.toUtc().toIso8601String())
+                              : 'due_date_time_placeholder'.tr,
                           style: TextStyle(
                               color: _dueDate != null
                                   ? null
@@ -197,12 +198,16 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _status,
-                decoration: const InputDecoration(
-                  labelText: 'Status / الحالة',
-                  prefixIcon: Icon(Icons.info_outlined),
+                decoration: InputDecoration(
+                  labelText: 'status'.tr,
+                  prefixIcon: const Icon(Icons.info_outlined),
                 ),
-                items: AppConstants.taskStatuses.map((s) =>
-                    DropdownMenuItem(value: s, child: Text(s))).toList(),
+                items: AppConstants.taskStatuses
+                    .map((s) => DropdownMenuItem(
+                          value: s,
+                          child: Text(AppHelpers.taskStatusArabic(s)),
+                        ))
+                    .toList(),
                 onChanged: (v) => setState(() => _status = v!),
               ),
               const SizedBox(height: 24),
@@ -212,12 +217,12 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                       onPressed: ctrl.isSubmitting.value ? null : _submit,
                       child: ctrl.isSubmitting.value
                           ? const SizedBox(
-                              height: 20, width: 20,
+                              height: 20,
+                              width: 20,
                               child: CircularProgressIndicator(
                                   color: Colors.white, strokeWidth: 2))
-                          : Text(_isEditing
-                              ? 'Update Task / تحديث'
-                              : 'Create Task / إنشاء المهمة'),
+                          : Text(
+                              _isEditing ? 'save'.tr : 'create_task_button'.tr),
                     ),
                   )),
             ],

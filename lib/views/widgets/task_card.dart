@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../../data/models/task_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/helpers.dart';
@@ -81,7 +82,7 @@ class TaskCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            AppHelpers.formatDateHuman(task.dueDate),
+                            AppHelpers.formatDateTime(task.dueDate),
                             style: TextStyle(
                               fontSize: 12,
                               color: isOverdue
@@ -96,7 +97,7 @@ class TaskCard extends StatelessWidget {
                       ),
                     if (task.caseNumber != null)
                       Text(
-                        'Case: ${task.caseNumber}',
+                        '${'task_case_prefix'.tr}: ${task.caseNumber}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.primary,
                             ),
@@ -113,7 +114,7 @@ class TaskCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  task.status.replaceAll('_', ' '),
+                  AppHelpers.taskStatusArabic(task.status),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,

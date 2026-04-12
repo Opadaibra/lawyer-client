@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/models/user_model.dart';
 import '../../app/routes/app_routes.dart';
+import 'notification_controller.dart';
 
 class AuthController extends GetxController {
   final ApiService _api = ApiService();
@@ -53,6 +56,10 @@ class AuthController extends GetxController {
         await StorageService.setUser(userData);
       }
 
+      if (Get.isRegistered<NotificationController>()) {
+        unawaited(Get.find<NotificationController>().loadNotifications());
+      }
+
       // توجيه الموكل لشاشته الخاصة
       if (currentUser.value?.isClient == true) {
         Get.offAllNamed(AppRoutes.clientPortal);
@@ -99,6 +106,9 @@ class AuthController extends GetxController {
           currentUser.value = UserModel.fromJson(userData);
           await StorageService.setUser(userData);
         }
+        if (Get.isRegistered<NotificationController>()) {
+          unawaited(Get.find<NotificationController>().loadNotifications());
+        }
         Get.offAllNamed(AppRoutes.dashboard);
       } else {
         Get.snackbar(
@@ -123,6 +133,9 @@ class AuthController extends GetxController {
   Future<void> logout() async {
     await StorageService.clearAll();
     currentUser.value = null;
+    if (Get.isRegistered<NotificationController>()) {
+      Get.find<NotificationController>().resetForLogout();
+    }
     Get.offAllNamed(AppRoutes.login);
   }
 

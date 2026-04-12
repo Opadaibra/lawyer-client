@@ -31,6 +31,7 @@ class _CaseFormScreenState extends State<CaseFormScreen> {
   int? _selectedClientId;
   int? _selectedFileId;
   CaseModel? _editCase;
+  double? _feesPaidFromApi;
 
   bool get _isEditing => _editCase != null;
 
@@ -48,11 +49,29 @@ class _CaseFormScreenState extends State<CaseFormScreen> {
       _clientCapCtrl.text = _editCase!.clientCapacity ?? '';
       _opponentCtrl.text = _editCase!.opponent ?? '';
       _opponentCapCtrl.text = _editCase!.opponentCapacity ?? '';
-      _feesCtrl.text = _editCase!.totalFeesPaid?.toString() ?? '';
       _status = _editCase!.status;
       _selectedClientId = _editCase!.clientId;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadFeesFromApi());
     } else if (args?['clientId'] != null) {
       _selectedClientId = args!['clientId'] as int;
+      _feesCtrl.text = '—';
+    } else {
+      _feesCtrl.text = '—';
+    }
+  }
+
+  Future<void> _loadFeesFromApi() async {
+    if (_editCase == null) return;
+    final ctrl = Get.find<CaseController>();
+    final totals = await ctrl.fetchFeesTotals(_editCase!.id);
+    if (!mounted) return;
+    if (totals != null) {
+      setState(() {
+        _feesCtrl.text = totals['agreed']!.toStringAsFixed(2);
+        _feesPaidFromApi = totals['paid'];
+      });
+    } else {
+      setState(() => _feesCtrl.text = '—');
     }
   }
 
@@ -91,7 +110,7 @@ class _CaseFormScreenState extends State<CaseFormScreen> {
       opponentCapacity: _opponentCapCtrl.text.trim().isNotEmpty
           ? _opponentCapCtrl.text.trim()
           : null,
-      totalFeesPaid: double.tryParse(_feesCtrl.text) ?? 0.0,
+      totalFeesPaid: 0,
       status: _status,
     );
     final ctrl = Get.find<CaseController>();
@@ -119,35 +138,33 @@ class _CaseFormScreenState extends State<CaseFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // File Dropdown
-                Obx(() {
-                  final fileCtrl = Get.find<FileController>();
-                  final files = fileCtrl.files;
-                  if (files.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: DropdownButtonFormField<int>(
-                      value: _selectedFileId,
+              Obx(() {
+                final fileCtrl = Get.find<FileController>();
+                final files = fileCtrl.files;
+                if (files.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: DropdownButtonFormField<int>(
+                    value: _selectedFileId,
                     isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: ' ملف ',
-                        prefixIcon: const Icon(Icons.attach_file),
-                      ),
-                      items: files
-                          .map((f) => DropdownMenuItem(
-                                value: f.id,
-                                child: Text(
-                                  f.fileName ?? 'Unknown file',
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedFileId = v),
+                    decoration: InputDecoration(
+                      labelText: 'case_form_linked_file'.tr,
+                      prefixIcon: const Icon(Icons.attach_file),
                     ),
-                  );
-                }),
-              // Client dropdown
+                    items: files
+                        .map((f) => DropdownMenuItem(
+                              value: f.id,
+                              child: Text(
+                                f.fileName ?? 'unknown_file'.tr,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedFileId = v),
+                  ),
+                );
+              }),
               Obx(() {
                 final clients = clientCtrl.clients;
                 return DropdownButtonFormField<int>(
@@ -171,7 +188,7 @@ class _CaseFormScreenState extends State<CaseFormScreen> {
               TextFormField(
                 controller: _caseNumCtrl,
                 decoration: InputDecoration(
-                  labelText: 'case_number'.tr + ' *',
+                  labelText: '${'case_number'.tr} *',
                   prefixIcon: const Icon(Icons.tag),
                 ),
                 validator: (v) =>
@@ -246,12 +263,27 @@ class _CaseFormScreenState extends State<CaseFormScreen> {
               _buildSectionTitle('fees'.tr),
               TextFormField(
                 controller: _feesCtrl,
-                keyboardType: TextInputType.number,
+                readOnly: true,
+                enableInteractiveSelection: false,
                 decoration: InputDecoration(
-                  labelText: 'total_fees_paid'.tr,
+                  labelText: 'total_fees_agreed'.tr,
+                  helperText: 'total_fees_readonly_hint'.tr,
                   prefixIcon: const Icon(Icons.attach_money_outlined),
+                  filled: true,
+                  fillColor: Theme.of(context).disabledColor.withOpacity(0.06),
                 ),
               ),
+              if (_feesPaidFromApi != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '${'total_paid_fees'.tr}: ${_feesPaidFromApi!.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _status,

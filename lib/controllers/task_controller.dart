@@ -1,9 +1,12 @@
-import 'dart:convert';
 import 'package:get/get.dart';
 import '../../data/services/api_service.dart';
 import '../../data/models/task_model.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/services/notification_service.dart';
+import '../../core/utils/helpers.dart';
+import 'auth_controller.dart';
+import 'case_controller.dart';
+import 'notification_controller.dart';
 
 class TaskController extends GetxController {
   final ApiService _api = ApiService();
@@ -17,7 +20,9 @@ class TaskController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchTasks();
+    if (!Get.find<AuthController>().isClient) {
+      fetchTasks();
+    }
   }
 
   Future<void> fetchTasks() async {
@@ -26,11 +31,30 @@ class TaskController extends GetxController {
       final response = await _api.getList('${AppConstants.tasks}/');
       final list = _parseList(response);
       tasks.value = list.map((e) => TaskModel.fromJson(e)).toList();
-      _checkReminders();
+      await NotificationService.checkTaskReminders(tasks);
+      _refreshNotificationList();
     } catch (e) {
       _showError(e);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// تحديث المهام بدون إظهار مؤشر التحميل (للفحص الدوري).
+  Future<void> fetchTasksSilently() async {
+    if (Get.find<AuthController>().isClient) return;
+    try {
+      final response = await _api.getList('${AppConstants.tasks}/');
+      final list = _parseList(response);
+      tasks.value = list.map((e) => TaskModel.fromJson(e)).toList();
+      await NotificationService.checkTaskReminders(tasks);
+      _refreshNotificationList();
+    } catch (_) {}
+  }
+
+  void _refreshNotificationList() {
+    if (Get.isRegistered<NotificationController>()) {
+      Get.find<NotificationController>().loadNotifications();
     }
   }
 
@@ -47,6 +71,17 @@ class TaskController extends GetxController {
     }
   }
 
+  /// جلب مهمة واحدة بدون تعطيل قائمة المهام (مثلاً من الإشعار).
+  Future<TaskModel?> fetchTaskByIdQuiet(int id) async {
+    try {
+      final response = await _api.get('${AppConstants.tasks}/$id');
+      final data = _extractData(response);
+      return TaskModel.fromJson(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<TaskModel> get filteredTasks {
     if (filterStatus.value.isEmpty) return tasks;
     return tasks.where((t) => t.status == filterStatus.value).toList();
@@ -56,25 +91,40 @@ class TaskController extends GetxController {
       tasks.where((t) => t.status == 'pending' && !t.isArchived).toList();
 
   List<TaskModel> get overdueTasks {
-    final now = DateTime.now();
     return tasks.where((t) {
-      if (t.dueDate == null || t.isArchived) return false;
-      try {
-        return DateTime.parse(t.dueDate!).isBefore(now) &&
-            t.status != 'completed';
-      } catch (_) {
+      if (t.dueDate == null || t.isArchived || t.status == 'completed') {
         return false;
       }
+      return AppHelpers.isOverdue(t.dueDate);
     }).toList();
   }
 
   Future<bool> createTask(TaskModel task) async {
     isSubmitting.value = true;
     try {
-      await _api.post('${AppConstants.tasks}/', data: task.toCreateJson());
+      final response =
+          await _api.post('${AppConstants.tasks}/', data: task.toCreateJson());
+      final newTaskId = _parseNewTaskId(response);
+      if (newTaskId != null) {
+        final recipientId =
+            await _resolveClientUserIdForNotification(task.caseFileId);
+        if (recipientId != null) {
+          try {
+            await NotificationService.postNotificationForNewTask(
+              taskId: newTaskId,
+              recipientUserId: recipientId,
+              taskTitle: task.title,
+              caseFileId: task.caseFileId,
+            );
+            _refreshNotificationList();
+          } catch (_) {
+            // الإشعار اختياري — لا نفشل إنشاء المهمة
+          }
+        }
+      }
       await fetchTasks();
       Get.back();
-      _showSuccess('Task created / تم إنشاء المهمة');
+      _showSuccess('task_created'.tr);
       return true;
     } catch (e) {
       _showError(e);
@@ -90,7 +140,7 @@ class TaskController extends GetxController {
       await _api.patch('${AppConstants.tasks}/$id', task.toCreateJson());
       await fetchTasks();
       Get.back();
-      _showSuccess('Task updated / تم تحديث المهمة');
+      _showSuccess('task_updated'.tr);
       return true;
     } catch (e) {
       _showError(e);
@@ -110,7 +160,7 @@ class TaskController extends GetxController {
         'status': 'completed',
       });
       await fetchTasks();
-      _showSuccess('Task completed! / تم إكمال المهمة!');
+      _showSuccess('task_completed'.tr);
       return true;
     } catch (e) {
       _showError(e);
@@ -122,7 +172,7 @@ class TaskController extends GetxController {
     try {
       await _api.delete('${AppConstants.tasks}/$id');
       tasks.removeWhere((t) => t.id == id);
-      _showSuccess('Task deleted / تم حذف المهمة');
+      _showSuccess('task_deleted'.tr);
       return true;
     } catch (e) {
       _showError(e);
@@ -134,7 +184,7 @@ class TaskController extends GetxController {
     try {
       await _api.post('${AppConstants.tasks}/$id/archive');
       await fetchTasks();
-      _showSuccess('Task archived / تم أرشفة المهمة');
+      _showSuccess('task_archived'.tr);
     } catch (e) {
       _showError(e);
     }
@@ -144,50 +194,9 @@ class TaskController extends GetxController {
     try {
       await _api.post('${AppConstants.tasks}/$id/unarchive');
       await fetchTasks();
-      _showSuccess('Task unarchived / تم إلغاء الأرشفة');
+      _showSuccess('task_unarchived'.tr);
     } catch (e) {
       _showError(e);
-    }
-  }
-
-  void _checkReminders() async {
-    final now = DateTime.now();
-    for (final task in tasks) {
-      if (task.dueDate == null || task.isArchived || task.status == 'completed') {
-        continue;
-      }
-      try {
-        final due = DateTime.parse(task.dueDate!);
-        final diff = due.difference(now);
-        if (diff.isNegative && task.status != 'completed') {
-          await NotificationService.addNotification(
-            title: 'Overdue Task / مهمة متأخرة',
-            message: '"${task.title}" is overdue!',
-            type: 'overdue',
-            relatedId: task.id,
-            relatedType: 'task',
-          );
-        } else if (diff.inHours <= 24 && diff.inHours >= 0) {
-          await NotificationService.addNotification(
-            title: 'Task Due Soon / مهمة قادمة',
-            message: '"${task.title}" is due in ${diff.inHours}h',
-            type: 'task_reminder',
-            relatedId: task.id,
-            relatedType: 'task',
-          );
-        }
-        
-        // Exact time scheduling
-        if (due.isAfter(now)) {
-           await NotificationService.scheduleNotification(
-             id: task.id,
-             title: 'Task Due! / حان وقت المهمة!',
-             body: 'Your task "${task.title}" is due right now.',
-             scheduledDate: due,
-             payload: jsonEncode({'related_type': 'task', 'related_id': task.id}),
-           );
-        }
-      } catch (_) {}
     }
   }
 
@@ -203,13 +212,51 @@ class TaskController extends GetxController {
     return (response['data'] as Map<String, dynamic>?) ?? response;
   }
 
+  int? _parseNewTaskId(Map<String, dynamic> response) {
+    final d = response['data'];
+    if (d is Map && d['id'] != null) {
+      return (d['id'] as num).toInt();
+    }
+    if (d is List && d.isNotEmpty) {
+      final first = d.first;
+      if (first is Map && first['id'] != null) {
+        return (first['id'] as num).toInt();
+      }
+    }
+    if (response['id'] != null) {
+      return (response['id'] as num).toInt();
+    }
+    return null;
+  }
+
+  Future<int?> _resolveClientUserIdForNotification(int? caseFileId) async {
+    if (caseFileId == null) return null;
+    if (Get.isRegistered<CaseController>()) {
+      final match = Get.find<CaseController>()
+          .cases
+          .firstWhereOrNull((c) => c.id == caseFileId);
+      if (match?.clientUserId != null) return match!.clientUserId;
+    }
+    try {
+      final res = await _api.get('${AppConstants.cases}/$caseFileId');
+      final data = _extractData(res);
+      final client = data['client'];
+      if (client is Map && client['user_id'] != null) {
+        return (client['user_id'] as num).toInt();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   void _showError(dynamic e) {
-    Get.snackbar('Error / خطأ',
-        e.toString().replaceFirst('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar(
+      'error'.tr,
+      e.toString().replaceFirst('Exception: ', ''),
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   void _showSuccess(String msg) {
-    Get.snackbar('Success / نجاح', msg, snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar('success'.tr, msg, snackPosition: SnackPosition.BOTTOM);
   }
 }

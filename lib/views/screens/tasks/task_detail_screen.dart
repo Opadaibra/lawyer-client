@@ -14,42 +14,90 @@ class TaskDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ctrl = Get.find<TaskController>();
-    
-    // Support navigation via full model or just ID (for notifications)
-    final TaskModel? taskData;
-    if (Get.arguments?['task'] is TaskModel) {
-      taskData = Get.arguments['task'] as TaskModel;
-    } else if (Get.arguments?['id'] != null) {
-      final id = Get.arguments['id'] is int ? Get.arguments['id'] : int.tryParse(Get.arguments['id'].toString());
-      taskData = ctrl.tasks.firstWhereOrNull((t) => t.id == id);
-    } else {
-      taskData = null;
+    final auth = Get.find<AuthController>();
+    final args = Get.arguments as Map<String, dynamic>?;
+
+    TaskModel? fromArgs;
+    int? idArg;
+    if (args?['task'] is TaskModel) {
+      fromArgs = args!['task'] as TaskModel;
+    } else if (args?['id'] != null) {
+      idArg = args!['id'] is int
+          ? args['id'] as int
+          : int.tryParse(args['id'].toString());
+      if (idArg != null) {
+        fromArgs = ctrl.tasks.firstWhereOrNull((t) => t.id == idArg);
+      }
     }
 
-    if (taskData == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Task Not Found')),
-        body: const Center(child: Text('Task not found or loading...\nالمهمة غير موجودة أو قيد التحميل')),
+    final resolved = fromArgs;
+    if (resolved != null) {
+      return _TaskDetailView(task: resolved, ctrl: ctrl, auth: auth);
+    }
+
+    if (idArg != null && !auth.isClient) {
+      return FutureBuilder<TaskModel?>(
+        future: ctrl.fetchTaskByIdQuiet(idArg),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return Scaffold(
+              appBar: CustomAppBar(title: 'task_detail'.tr),
+              body: const Center(child: CircularProgressIndicator()),
+            );
+          }
+          final t = snap.data;
+          if (t == null) {
+            return Scaffold(
+              appBar: AppBar(title: Text('task_not_found'.tr)),
+              body: Center(child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Text('task_not_found_body'.tr, textAlign: TextAlign.center),
+              )),
+            );
+          }
+          return _TaskDetailView(task: t, ctrl: ctrl, auth: auth);
+        },
       );
     }
 
-    final task = taskData; // Final local for null safety
+    return Scaffold(
+      appBar: AppBar(title: Text('task_not_found'.tr)),
+      body: Center(child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Text('task_not_found_body'.tr, textAlign: TextAlign.center),
+      )),
+    );
+  }
+}
+
+class _TaskDetailView extends StatelessWidget {
+  final TaskModel task;
+  final TaskController ctrl;
+  final AuthController auth;
+
+  const _TaskDetailView({
+    required this.task,
+    required this.ctrl,
+    required this.auth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final statusColor = AppTheme.getStatusColor(task.status);
-    final auth = Get.find<AuthController>();
     final canMutate = auth.currentUser.value?.canMutateOfficeContent ?? true;
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Task Detail / تفاصيل المهمة',
+        title: 'task_detail'.tr,
         actions: [
           if (canMutate)
             PopupMenuButton(
               itemBuilder: (_) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                     value: 'edit',
                     child: ListTile(
-                        leading: Icon(Icons.edit_outlined),
-                        title: Text('Edit'))),
+                        leading: const Icon(Icons.edit_outlined),
+                        title: Text('edit'.tr))),
                 PopupMenuItem(
                     value: 'archive',
                     child: ListTile(
@@ -57,13 +105,14 @@ class TaskDetailScreen extends StatelessWidget {
                             ? Icons.unarchive_outlined
                             : Icons.archive_outlined),
                         title: Text(
-                            task.isArchived ? 'Unarchive' : 'Archive'))),
-                const PopupMenuItem(
+                            task.isArchived ? 'unarchive'.tr : 'archive_verb'.tr))),
+                PopupMenuItem(
                     value: 'delete',
                     child: ListTile(
-                        leading: Icon(Icons.delete_outline, color: Colors.red),
-                        title: Text('Delete',
-                            style: TextStyle(color: Colors.red)))),
+                        leading:
+                            const Icon(Icons.delete_outline, color: Colors.red),
+                        title: Text('delete'.tr,
+                            style: const TextStyle(color: Colors.red)))),
               ],
               onSelected: (v) {
                 if (v == 'edit') {
@@ -73,7 +122,7 @@ class TaskDetailScreen extends StatelessWidget {
                       ? ctrl.unarchiveTask(task.id)
                       : ctrl.archiveTask(task.id);
                 } else {
-                  _confirmDelete(ctrl, task.id);
+                  _confirmDelete(context, ctrl, task.id);
                 }
               },
             ),
@@ -84,7 +133,6 @@ class TaskDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status banner
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -107,14 +155,16 @@ class TaskDetailScreen extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: statusColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      task.status.replaceAll('_', ' '),
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      AppHelpers.taskStatusArabic(task.status),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
                 ],
@@ -126,14 +176,16 @@ class TaskDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    _DetailTile(Icons.calendar_today_outlined, 'Due Date / تاريخ الاستحقاق',
-                        AppHelpers.formatDateHuman(task.dueDate)),
+                    _DetailTile(Icons.calendar_today_outlined,
+                        'task_due_date'.tr, AppHelpers.formatDateTime(task.dueDate)),
                     if (task.caseNumber != null)
-                      _DetailTile(Icons.folder_outlined, 'Case / القضية', task.caseNumber!),
-                    _DetailTile(Icons.access_time_outlined, 'Created / تاريخ الإنشاء',
+                      _DetailTile(Icons.folder_outlined, 'task_case'.tr,
+                          task.caseNumber!),
+                    _DetailTile(Icons.access_time_outlined, 'task_created_at'.tr,
                         AppHelpers.formatDateHuman(task.createdAt)),
                     if (task.isArchived)
-                      _DetailTile(Icons.archive_outlined, 'Archived / مؤرشفة', 'Yes / نعم'),
+                      _DetailTile(Icons.archive_outlined,
+                          'task_archived_label'.tr, 'yes'.tr),
                   ],
                 ),
               ),
@@ -146,7 +198,7 @@ class TaskDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Description / الوصف',
+                      Text('task_description'.tr,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
@@ -162,9 +214,10 @@ class TaskDetailScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => ctrl.completeTask(task.id).then((_) => Get.back()),
+                  onPressed: () =>
+                      ctrl.completeTask(task.id).then((_) => Get.back()),
                   icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Mark Complete / إكمال المهمة'),
+                  label: Text('mark_task_complete'.tr),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.success),
                 ),
@@ -175,19 +228,20 @@ class TaskDetailScreen extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(TaskController ctrl, int id) {
+  void _confirmDelete(BuildContext context, TaskController ctrl, int id) {
     Get.dialog(AlertDialog(
-      title: const Text('Delete Task / حذف المهمة'),
-      content: const Text('Are you sure? / هل أنت متأكد؟'),
+      title: Text('delete_task_title'.tr),
+      content: Text('are_you_sure'.tr),
       actions: [
-        TextButton(onPressed: Get.back, child: const Text('Cancel')),
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
         ElevatedButton(
           onPressed: () {
-            Get.back(); Get.back();
+            Get.back();
+            Get.back();
             ctrl.deleteTask(id);
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child: const Text('Delete'),
+          child: Text('delete'.tr),
         ),
       ],
     ));

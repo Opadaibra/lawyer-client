@@ -5,6 +5,7 @@ import '../../controllers/auth_controller.dart';
 import '../../app/routes/app_routes.dart';
 import '../../controllers/case_controller.dart';
 import '../../controllers/client_controller.dart';
+import '../../controllers/notification_controller.dart';
 import '../../core/theme/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'tasks/tasks_screen.dart';
@@ -31,6 +32,46 @@ class MainNavigationScreen extends StatelessWidget {
         title: Text('app_name'.tr,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
         actions: [
+          Obx(() {
+            final notifCtrl = Get.find<NotificationController>();
+            final count = notifCtrl.unreadCount.value;
+            return Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                  tooltip: 'notifications'.tr,
+                  onPressed: () => Get.toNamed(AppRoutes.notifications),
+                ),
+                if (count > 0)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        count > 99 ? '99+' : count.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }),
           PopupMenuButton<String>(
             icon: CircleAvatar(
               backgroundColor: Colors.white.withOpacity(0.2),

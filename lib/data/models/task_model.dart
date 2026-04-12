@@ -1,3 +1,5 @@
+import '../../core/utils/helpers.dart';
+
 class TaskModel {
   final int id;
   final int? caseFileId; // case_file_id in API
@@ -39,18 +41,10 @@ class TaskModel {
         nextSessionDate: json['next_session_date'] as String?,
         notes: json['notes'] as String?,
         fileId: json['file_id'] as int?,
-        dueDate: json['due_date'] != null
-            ? (json['due_date'].toString().endsWith('Z')
-                ? json['due_date']
-                : '${json['due_date']}Z')
-            : null,
+        dueDate: AppHelpers.normalizeApiDateString(json['due_date']),
         status: json['status'] as String? ?? 'pending',
         isArchived: json['archived_at'] != null,
-        createdAt: json['created_at'] != null
-            ? (json['created_at'].toString().endsWith('Z')
-                ? json['created_at']
-                : '${json['created_at']}Z')
-            : null,
+        createdAt: AppHelpers.normalizeApiDateString(json['created_at']),
       );
 
   Map<String, dynamic> toCreateJson() => {

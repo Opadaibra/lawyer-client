@@ -136,6 +136,8 @@ class DashboardScreen extends StatelessWidget {
                           value: dash.totalSessions.value.toString(),
                           icon: Icons.gavel_outlined,
                           color: AppTheme.accent,
+                          onTap: () =>
+                              Get.toNamed(AppRoutes.allSessions),
                         ),
                       ),
                       const SizedBox(width: 12),

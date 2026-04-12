@@ -3,9 +3,18 @@ import 'file_model.dart';
 import 'minute_model.dart';
 import 'task_model.dart';
 
+int? _intFromJson(dynamic v) {
+  if (v == null) return null;
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  return int.tryParse(v.toString());
+}
+
 class CaseModel {
   final int id;
   final int? clientId;
+  /// معرّف مستخدم حساب الموكل (للإشعارات) إن وُجد في استجابة الـ API
+  final int? clientUserId;
   final String? clientName;
   final String caseNumber;
   final String? caseType;
@@ -16,6 +25,9 @@ class CaseModel {
   final String? opponent;
   final String? opponentCapacity;
   final double totalFeesPaid;
+  /// من `GET /cases/{id}/fees` عند كون `data` كائناً (total_fees / total_paid)
+  final double? feesApiAgreedTotal;
+  final double? feesApiPaidTotal;
   final String? nextSessionDate;
   final String? notes;
   final String status;
@@ -38,6 +50,7 @@ class CaseModel {
   CaseModel({
     required this.id,
     this.clientId,
+    this.clientUserId,
     this.clientName,
     required this.caseNumber,
     this.caseType,
@@ -48,6 +61,8 @@ class CaseModel {
     this.opponent,
     this.opponentCapacity,
     this.totalFeesPaid = 0.0,
+    this.feesApiAgreedTotal,
+    this.feesApiPaidTotal,
     this.nextSessionDate,
     this.notes,
     required this.status,
@@ -74,6 +89,13 @@ class CaseModel {
   factory CaseModel.fromJson(Map<String, dynamic> json) => CaseModel(
         id: json['id'] as int? ?? 0,
         clientId: json['client_id'] as int?,
+        clientUserId: () {
+          final c = json['client'];
+          if (c is Map) {
+            return _intFromJson(c['user_id']);
+          }
+          return _intFromJson(json['client_user_id']);
+        }(),
         clientName: json['client']?['name'] as String? ?? json['client_name'] as String?,
         caseNumber: json['case_number'] as String? ?? '',
         caseType: json['case_type'] as String?,
@@ -154,6 +176,7 @@ class CaseModel {
   CaseModel copyWith({
     int? id,
     int? clientId,
+    int? clientUserId,
     String? clientName,
     String? caseNumber,
     String? caseType,
@@ -164,6 +187,8 @@ class CaseModel {
     String? opponent,
     String? opponentCapacity,
     double? totalFeesPaid,
+    double? feesApiAgreedTotal,
+    double? feesApiPaidTotal,
     String? nextSessionDate,
     String? notes,
     String? status,
@@ -181,6 +206,7 @@ class CaseModel {
     return CaseModel(
       id: id ?? this.id,
       clientId: clientId ?? this.clientId,
+      clientUserId: clientUserId ?? this.clientUserId,
       clientName: clientName ?? this.clientName,
       caseNumber: caseNumber ?? this.caseNumber,
       caseType: caseType ?? this.caseType,
@@ -191,6 +217,8 @@ class CaseModel {
       opponent: opponent ?? this.opponent,
       opponentCapacity: opponentCapacity ?? this.opponentCapacity,
       totalFeesPaid: totalFeesPaid ?? this.totalFeesPaid,
+      feesApiAgreedTotal: feesApiAgreedTotal ?? this.feesApiAgreedTotal,
+      feesApiPaidTotal: feesApiPaidTotal ?? this.feesApiPaidTotal,
       nextSessionDate: nextSessionDate ?? this.nextSessionDate,
       notes: notes ?? this.notes,
       status: status ?? this.status,

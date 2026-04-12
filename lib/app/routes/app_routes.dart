@@ -16,6 +16,7 @@ class AppRoutes {
   static const String cases = '/cases';
   static const String caseDetail = '/case-detail';
   static const String caseForm = '/case-form';
+  static const String allSessions = '/all-sessions';
 
   // Tasks
   static const String tasks = '/tasks';

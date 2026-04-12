@@ -1,5 +1,23 @@
 import 'file_model.dart';
 
+String? _minuteClientName(Map<String, dynamic> json) {
+  final top = json['client'];
+  if (top is Map && top['name'] != null) {
+    return top['name'].toString();
+  }
+  final caseObj = json['case'];
+  if (caseObj is Map) {
+    final cl = caseObj['client'];
+    if (cl is Map && cl['name'] != null) {
+      return cl['name'].toString();
+    }
+    if (caseObj['client_name'] != null) {
+      return caseObj['client_name'].toString();
+    }
+  }
+  return null;
+}
+
 class MinuteModel {
   final int id;
   final int? caseFileId;
@@ -48,7 +66,7 @@ class MinuteModel {
         id: json['id'] as int? ?? 0,
         caseFileId: json['case_file_id'] as int?,
         clientId: json['client_id'] as int?,
-        clientName: json['client']?['name'] as String?,
+        clientName: _minuteClientName(json),
         caseNumber: json['case']?['case_number'] as String?,
         title: json['title'] as String? ?? json['number'] as String? ?? json['minute_number'] as String? ?? 'Minute',
         date: json['date'] as String? ?? '',

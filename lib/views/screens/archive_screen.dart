@@ -5,6 +5,7 @@ import '../../controllers/case_controller.dart';
 import '../../controllers/minute_controller.dart';
 import '../../controllers/task_controller.dart';
 import '../../app/routes/app_routes.dart';
+import '../../core/utils/helpers.dart';
 import '../widgets/custom_app_bar.dart';
 
 class ArchiveScreen extends StatefulWidget {
@@ -99,7 +100,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             child: ListTile(
               leading: const Icon(Icons.archive_outlined, color: Colors.grey),
               title: Text(t.title),
-              subtitle: Text(t.dueDate ?? ''),
+              subtitle: Text(t.dueDate != null
+                  ? AppHelpers.formatDateTime(t.dueDate)
+                  : ''),
               trailing: canMutate
                   ? IconButton(
                       icon: const Icon(Icons.unarchive_outlined),

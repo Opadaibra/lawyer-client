@@ -1,65 +1,40 @@
 import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
-import 'package:uuid/uuid.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
-import '../../data/services/storage_service.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+
+import '../../app/routes/app_routes.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/utils/helpers.dart';
+import '../models/case_model.dart';
+import '../models/minute_model.dart';
+import '../models/notification_model.dart';
 import '../models/task_model.dart';
-
-class NotificationModel {
-  final String id;
-  final String title;
-  final String message;
-  final String type; // task_reminder, case_reminder, overdue
-  final int? relatedId;
-  final String? relatedType; // task, case
-  bool isRead;
-  final DateTime createdAt;
-
-  NotificationModel({
-    required this.id,
-    required this.title,
-    required this.message,
-    required this.type,
-    this.relatedId,
-    this.relatedType,
-    this.isRead = false,
-    required this.createdAt,
-  });
-
-  factory NotificationModel.fromJson(Map<String, dynamic> json) {
-    return NotificationModel(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      message: json['message'] as String,
-      type: json['type'] as String,
-      relatedId: json['related_id'] as int?,
-      relatedType: json['related_type'] as String?,
-      isRead: json['is_read'] as bool? ?? false,
-      createdAt: DateTime.parse(json['created_at'] as String),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'message': message,
-        'type': type,
-        'related_id': relatedId,
-        'related_type': relatedType,
-        'is_read': isRead,
-        'created_at': createdAt.toIso8601String(),
-      };
-}
+import 'api_service.dart';
+import 'storage_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
-  static const _uuid = Uuid();
+  static const _zonedTaskBaseId = 500000;
+
+  static bool _isClientUser() {
+    final u = StorageService.getUser();
+    final r = u?['role']?.toString().toUpperCase();
+    return r == 'CLIENT';
+  }
 
   static Future<void> initialize() async {
     tz_data.initializeTimeZones();
+    try {
+      final name = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(name));
+    } catch (_) {
+      tz.setLocalLocation(tz.UTC);
+    }
+
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
@@ -74,51 +49,111 @@ class NotificationService {
     await _plugin.initialize(
       settings,
       onDidReceiveNotificationResponse: (details) {
-        // Handle notification tap — navigate based on payload
-        final payload = details.payload;
-        if (payload != null) {
-          try {
-            final data = jsonDecode(payload) as Map<String, dynamic>;
-            final type = data['related_type'];
-            final id = data['related_id'];
-            if (type == 'task') {
-              Get.toNamed('/task-detail', arguments: {'id': id});
-            } else if (type == 'case') {
-              Get.toNamed('/case-detail', arguments: {'id': id});
-            }
-          } catch (_) {}
+        final p = details.payload;
+        if (p != null) {
+          _handleLocalNotificationPayload(p).catchError((_) {});
         }
       },
     );
 
-    // Request permissions on Android 13+
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
   }
 
-  // ─── Show local OS notification ───────────────────────────────────────────
+  static Future<void> _handleLocalNotificationPayload(String payload) async {
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      final relatedType = data['related_type'] as String?;
+      final relatedId = (data['related_id'] as num?)?.toInt();
+      final caseFileId = (data['case_file_id'] as num?)?.toInt();
+
+      if (relatedType == 'task' && relatedId != null) {
+        if (_isClientUser()) {
+          if (caseFileId != null) {
+            await _openClientCaseById(caseFileId);
+          } else {
+            Get.toNamed(AppRoutes.clientPortal);
+          }
+        } else {
+          Get.toNamed(AppRoutes.taskDetail, arguments: {'id': relatedId});
+        }
+        return;
+      }
+      if (relatedType == 'case' && relatedId != null) {
+        Get.toNamed(AppRoutes.caseDetail, arguments: {'id': relatedId});
+        return;
+      }
+      if (relatedType == 'minute' && relatedId != null && !_isClientUser()) {
+        await openMinuteDetailById(relatedId);
+        return;
+      }
+      Get.toNamed(AppRoutes.notifications);
+    } catch (_) {}
+  }
+
+  static Future<void> _openClientCaseById(int caseId) async {
+    try {
+      final api = ApiService();
+      final response = await api.getList(AppConstants.clientPortal);
+      List<dynamic> list = [];
+      if (response is Map && response['data'] is List) {
+        list = response['data'] as List;
+      } else if (response is List) {
+        list = response;
+      }
+      for (final e in list) {
+        final c = CaseModel.fromJson(Map<String, dynamic>.from(e as Map));
+        if (c.id == caseId) {
+          await Get.toNamed(AppRoutes.clientPortalCaseDetail,
+              arguments: {'case': c});
+          return;
+        }
+      }
+      await Get.toNamed(AppRoutes.clientPortal);
+    } catch (_) {
+      await Get.toNamed(AppRoutes.clientPortal);
+    }
+  }
+
+  static Future<void> openMinuteDetailById(int id) async {
+    try {
+      final api = ApiService();
+      final res = await api.get('${AppConstants.minutes}/$id');
+      final raw = res['data'] ?? res;
+      if (raw is Map) {
+        final m = MinuteModel.fromJson(Map<String, dynamic>.from(raw));
+        await Get.toNamed(AppRoutes.minuteDetail, arguments: {'minute': m});
+      }
+    } catch (_) {}
+  }
+
   static Future<void> showNotification({
     required int id,
     required String title,
     required String body,
     String? payload,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       'lawyer_channel',
-      'Lawyer Office Reminders',
-      channelDescription: 'Task and case reminders',
+      'تذكيرات المكتب',
+      channelDescription: 'تذكيرات المهام والقضايا',
       importance: Importance.high,
       priority: Priority.high,
-      styleInformation: BigTextStyleInformation(''),
+      styleInformation: BigTextStyleInformation(body),
     );
     const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
     await _plugin.show(id, title, body, details, payload: payload);
+  }
+
+  static tz.TZDateTime _toTzLocal(DateTime instant) {
+    final utcMs = instant.toUtc().millisecondsSinceEpoch;
+    return tz.TZDateTime.fromMillisecondsSinceEpoch(tz.local, utcMs);
   }
 
   static Future<void> scheduleNotification({
@@ -128,11 +163,15 @@ class NotificationService {
     required DateTime scheduledDate,
     String? payload,
   }) async {
-    if (scheduledDate.isBefore(DateTime.now())) return;
+    final when = _toTzLocal(scheduledDate);
+    if (!when.isAfter(tz.TZDateTime.now(tz.local))) return;
+
+    final notifId = _zonedTaskBaseId + id;
+    await _plugin.cancel(notifId);
 
     const androidDetails = AndroidNotificationDetails(
       'lawyer_channel',
-      'Lawyer Office Reminders',
+      'تذكيرات المكتب',
       importance: Importance.high,
       priority: Priority.high,
     );
@@ -142,10 +181,10 @@ class NotificationService {
     );
 
     await _plugin.zonedSchedule(
-      id,
+      notifId,
       title,
       body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
+      when,
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
@@ -154,39 +193,39 @@ class NotificationService {
     );
   }
 
-  // ─── Daily 8:00 AM Morning Update ─────────────────────────────────────────
   static Future<void> scheduleDailyTaskReminder(List<TaskModel> tasks) async {
-    final now = DateTime.now();
-    var scheduledDate = DateTime(now.year, now.month, now.day, 8, 0);
-    
-    // If it's already past 8 AM today, schedule for tomorrow
-    if (now.hour >= 8) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    final nowLoc = tz.TZDateTime.now(tz.local);
+    var next8 = tz.TZDateTime(
+        tz.local, nowLoc.year, nowLoc.month, nowLoc.day, 8, 0);
+    if (!next8.isAfter(nowLoc)) {
+      next8 = next8.add(const Duration(days: 1));
     }
 
+    final todayLocal = DateTime.now();
     final tasksToday = tasks.where((t) {
       if (t.dueDate == null || t.status == 'completed') return false;
-      try {
-        final d = DateTime.parse(t.dueDate!).toLocal();
-        return d.year == now.year && d.month == now.month && d.day == now.day;
-      } catch (_) {
-        return false;
-      }
+      final dueUtc = AppHelpers.dueInstantUtc(t.dueDate);
+      if (dueUtc == null) return false;
+      final dueLocal = dueUtc.toLocal();
+      return dueLocal.year == todayLocal.year &&
+          dueLocal.month == todayLocal.month &&
+          dueLocal.day == todayLocal.day;
     }).toList();
 
     if (tasksToday.isEmpty) return;
 
-    final body = 'You have ${tasksToday.length} tasks scheduled for today. / لديك ${tasksToday.length} مهام اليوم.';
+    final body = 'لديك ${tasksToday.length} مهمة مجدولة لهذا اليوم.';
 
     await _plugin.zonedSchedule(
-      888, // Unique ID for daily reminder
-      'Morning Update / تحديث الصباح',
+      888,
+      'تذكير الصباح',
       body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
+      next8,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'daily_reminder_channel',
-          'Daily Reminders',
+          'تذكير يومي',
+          channelDescription: 'ملخص المهام كل صباح',
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -195,88 +234,94 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // Repeat every day at this time
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
-  // ─── In-app notification store ────────────────────────────────────────────
-  static List<NotificationModel> getAll() {
-    final raw = StorageService.getNotifications();
-    return raw.map((e) => NotificationModel.fromJson(e)).toList()
+  /// تذكيرات الجدولة المحلية فقط (بدون تخزين في قائمة الإشعارات — القائمة من السيرفر).
+  static Future<void> checkTaskReminders(List<TaskModel> tasks) async {
+    final nowUtc = DateTime.now().toUtc();
+
+    for (final task in tasks) {
+      if (task.dueDate == null || task.isArchived || task.status == 'completed') {
+        continue;
+      }
+      final dueUtc = AppHelpers.dueInstantUtc(task.dueDate);
+      if (dueUtc == null) continue;
+
+      if (dueUtc.isAfter(nowUtc)) {
+        await scheduleNotification(
+          id: task.id,
+          title: 'حان وقت المهمة',
+          body: '«${task.title}»',
+          scheduledDate: DateTime.fromMillisecondsSinceEpoch(
+            dueUtc.millisecondsSinceEpoch,
+            isUtc: true,
+          ),
+          payload: jsonEncode({
+            'related_type': 'task',
+            'related_id': task.id,
+            'case_file_id': task.caseFileId,
+          }),
+        );
+      }
+    }
+  }
+
+  // ─── API إشعارات التطبيق ─────────────────────────────────────────────────
+
+  static Future<List<NotificationModel>> fetchNotificationsFromApi() async {
+    if (!StorageService.isLoggedIn()) return [];
+    final api = ApiService();
+    final path = _isClientUser()
+        ? AppConstants.clientPortalNotifications
+        : AppConstants.notifications;
+    final res = await api.get(path);
+    final data = res['data'];
+    if (data is! List) return [];
+    final list = data
+        .map((e) =>
+            NotificationModel.fromApiJson(Map<String, dynamic>.from(e as Map)))
+        .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
   }
 
-  static int getUnreadCount() => getAll().where((n) => !n.isRead).length;
+  static Future<void> markNotificationReadApi(int id) async {
+    final api = ApiService();
+    final base = _isClientUser()
+        ? AppConstants.clientPortalNotifications
+        : AppConstants.notifications;
+    await api.patch('$base/$id/read', {});
+  }
 
-  static Future<void> addNotification({
-    required String title,
-    required String message,
-    required String type,
-    int? relatedId,
-    String? relatedType,
+  /// إشعار بمهمة جديدة للمستخدم المستهدف (عادة حساب الموكل) مع `task_id`.
+  static Future<void> postNotificationForNewTask({
+    required int taskId,
+    required int recipientUserId,
+    required String taskTitle,
+    int? caseFileId,
   }) async {
-    final notifications = getAll();
-    // Avoid duplicates (same type+relatedId within last 24h)
-    final isDuplicate = notifications.any((n) =>
-        n.type == type &&
-        n.relatedId == relatedId &&
-        DateTime.now().difference(n.createdAt).inHours < 24);
-    if (isDuplicate) return;
-
-    final notification = NotificationModel(
-      id: _uuid.v4(),
-      title: title,
-      message: message,
-      type: type,
-      relatedId: relatedId,
-      relatedType: relatedType,
-      createdAt: DateTime.now(),
-    );
-
-    notifications.insert(0, notification);
-    // Keep only last 100
-    final trimmed = notifications.take(100).toList();
-    await StorageService.setNotifications(
-        trimmed.map((n) => n.toJson()).toList());
-
-    // Also show OS push notification
-    await showNotification(
-      id: relatedId ?? DateTime.now().millisecondsSinceEpoch % 100000,
-      title: title,
-      body: message,
-      payload: jsonEncode({
-        'related_type': relatedType,
-        'related_id': relatedId,
-      }),
-    );
+    if (!StorageService.isLoggedIn()) return;
+    final api = ApiService();
+    await api.post(AppConstants.notifications, data: {
+      'user_id': recipientUserId,
+      'title': 'إشعار بمهمة جديدة',
+      'message': 'تم إسناد مهمة جديدة لقضيتك: «$taskTitle»',
+      'task_id': taskId,
+      if (caseFileId != null) 'case_file_id': caseFileId,
+    });
   }
 
-  static Future<void> markAsRead(String id) async {
-    final notifications = getAll();
-    final idx = notifications.indexWhere((n) => n.id == id);
-    if (idx != -1) {
-      notifications[idx].isRead = true;
-      await StorageService.setNotifications(
-          notifications.map((n) => n.toJson()).toList());
-    }
-  }
+  /// إظهار دفع محلي لإشعار جديد من السيرفر (معرّف فريد لتفادي التصادم).
+  static int pushIdForServerNotification(int serverId) =>
+      1 + (serverId % 2000000000);
 
-  static Future<void> markAllAsRead() async {
-    final notifications = getAll();
-    for (var n in notifications) {
-      n.isRead = true;
-    }
-    await StorageService.setNotifications(
-        notifications.map((n) => n.toJson()).toList());
-  }
-
-  static Future<void> deleteNotification(String id) async {
-    final notifications = getAll().where((n) => n.id != id).toList();
-    await StorageService.setNotifications(
-        notifications.map((n) => n.toJson()).toList());
-  }
-
-  static Future<void> clearAll() async {
-    await StorageService.setNotifications([]);
+  static String payloadForServerNotification(NotificationModel n) {
+    return jsonEncode({
+      'related_type': n.relatedType,
+      'related_id': n.relatedId,
+      'case_file_id': n.caseFileId,
+    });
   }
 }

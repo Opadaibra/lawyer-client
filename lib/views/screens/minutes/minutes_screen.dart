@@ -82,7 +82,9 @@ class _MinutesScreenState extends State<MinutesScreen> {
         // Group by case
         final Map<String, List<dynamic>> grouped = {};
         for (final m in items) {
-          final key = m.caseNumber ?? 'Case #${m.caseFileId}';
+          final key = (m.clientName != null && m.clientName!.trim().isNotEmpty)
+              ? m.clientName!.trim()
+              : (m.caseNumber ?? 'قضية ${m.caseFileId ?? '—'}');
           grouped.putIfAbsent(key, () => []).add(m);
         }
         
@@ -104,7 +106,7 @@ class _MinutesScreenState extends State<MinutesScreen> {
                             color: AppTheme.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.folder_outlined,
+                          child: const Icon(Icons.person_outline,
                               color: AppTheme.primary, size: 16),
                         ),
                         const SizedBox(width: 8),

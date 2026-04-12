@@ -52,15 +52,15 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
 
       if (actualCase == null || actualCase.id != caseId && caseCtrl.isLoading.value) {
         return Scaffold(
-          appBar: AppBar(title: const Text('...')),
-          body: const Center(child: CircularProgressIndicator()),
+          appBar: AppBar(title: Text('loading'.tr)),
+          body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
         );
       }
 
       if (actualCase == null) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Error')),
-          body: Center(child: Text('no_cases'.tr)),
+          appBar: AppBar(title: Text('error'.tr)),
+          body: Center(child: Text('case_load_error'.tr)),
         );
       }
 
@@ -142,6 +142,23 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
             _DetailTile(Icons.calendar_today_outlined, 'next_session_date'.tr, 
                 AppHelpers.formatDateHuman(c.nextSessionDate)),
             _DetailTile(Icons.notes, 'notes'.tr, c.notes ?? '---'),
+          ]),
+          const SizedBox(height: 16),
+          _buildInfoCard(context, 'fees'.tr, [
+            _DetailTile(
+              Icons.attach_money_outlined,
+              'total_fees_agreed'.tr,
+              c.feesApiAgreedTotal != null
+                  ? c.feesApiAgreedTotal!.toStringAsFixed(2)
+                  : '—',
+            ),
+            _DetailTile(
+              Icons.payments_outlined,
+              'total_paid_fees'.tr,
+              c.feesApiPaidTotal != null
+                  ? c.feesApiPaidTotal!.toStringAsFixed(2)
+                  : '—',
+            ),
           ]),
         ],
       ),

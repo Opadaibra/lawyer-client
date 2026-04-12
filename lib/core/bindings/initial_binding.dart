@@ -9,6 +9,7 @@ import '../../controllers/notification_controller.dart';
 import '../../controllers/search_controller.dart' as search;
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/team_controller.dart';
+import '../../controllers/notification_poll_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -25,5 +26,7 @@ class InitialBinding extends Bindings {
     Get.lazyPut<search.SearchController>(
         () => search.SearchController(), fenix: true);
     Get.lazyPut<TeamController>(() => TeamController(), fenix: true);
+    Get.put<NotificationPollController>(NotificationPollController(),
+        permanent: true);
   }
 }
