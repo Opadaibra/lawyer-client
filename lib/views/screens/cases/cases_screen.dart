@@ -177,6 +177,7 @@ class CasesScreen extends StatelessWidget {
       }),
       floatingActionButton: canMutate
           ? FloatingActionButton.extended(
+              heroTag: 'cases_fab',
               onPressed: () => Get.toNamed(AppRoutes.caseForm),
               icon: const Icon(Icons.add),
               label: Text('new_case'.tr),

@@ -131,7 +131,7 @@ class MinuteController extends GetxController {
   Future<bool> createMinute(MinuteModel minute, {int? fileId}) async {
     isSubmitting.value = true;
     try {
-      final response = await _api.post('${AppConstants.minutes}/', data: minute.toCreateJson());
+      final response = await _api.post(AppConstants.minutes, data: minute.toCreateJson());
       
       if (fileId != null) {
         int? newId;
@@ -153,7 +153,7 @@ class MinuteController extends GetxController {
 
       await _reloadMinutesList();
       Get.back();
-      _showSuccess('تم إضافة المحضر');
+      _showSuccess('تم إضافة الضبط');
       return true;
     } catch (e) {
       _showError(e);
@@ -169,7 +169,7 @@ class MinuteController extends GetxController {
       await _api.patch('${AppConstants.minutes}/$id', minute.toCreateJson());
       await _reloadMinutesList();
       Get.back();
-      _showSuccess('تم تحديث المحضر');
+      _showSuccess('تم تحديث الضبط');
       return true;
     } catch (e) {
       _showError(e);
@@ -183,7 +183,7 @@ class MinuteController extends GetxController {
     try {
       await _api.delete('${AppConstants.minutes}/$id');
       await _reloadMinutesList();
-      _showSuccess('تم حذف المحضر');
+      _showSuccess('تم حذف الضبط');
       return true;
     } catch (e) {
       _showError(e);
@@ -195,7 +195,7 @@ class MinuteController extends GetxController {
     try {
       await _api.post('${AppConstants.minutes}/$id/archive');
       await _reloadMinutesList();
-      _showSuccess('تم أرشفة المحضر');
+      _showSuccess('تم أرشفة الضبط');
     } catch (e) {
       _showError(e);
     }
@@ -205,7 +205,7 @@ class MinuteController extends GetxController {
     try {
       await _api.post('${AppConstants.minutes}/$id/unarchive');
       await _reloadMinutesList();
-      _showSuccess('تم إلغاء أرشفة المحضر');
+      _showSuccess('تم إلغاء أرشفة الضبط');
     } catch (e) {
       _showError(e);
     }

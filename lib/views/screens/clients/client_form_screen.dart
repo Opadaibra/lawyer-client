@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../controllers/client_controller.dart';
 import '../../../data/models/client_model.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../widgets/custom_app_bar.dart';
 
 class ClientFormScreen extends StatefulWidget {
@@ -24,6 +27,8 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
 
   ClientModel? _editClient;
   bool get _isEditing => _editClient != null;
+  
+  String? _selectedImagePath;
 
   @override
   void initState() {
@@ -52,9 +57,38 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _pickImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _selectedImagePath = result.files.single.path;
+      });
+    }
+  }
+
+  void _submit() async {
+    String email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      String namePart = _nameCtrl.text.trim().replaceAll(' ', '_');
+      String phonePart = _phoneCtrl.text.trim();
+      if (phonePart.isEmpty) {
+        phonePart = DateTime.now().millisecondsSinceEpoch.toString().substring(8);
+      }
+      email = '$namePart$phonePart@gmail.com';
+      _emailCtrl.text = email;
+    }
+
+    String password = _passwordCtrl.text.trim();
+    if (!_isEditing && password.isEmpty) {
+      password = '123456';
+      _passwordCtrl.text = password;
+    }
+
     if (!_formKey.currentState!.validate()) return;
-    final password = _passwordCtrl.text.trim();
+    
     final client = ClientModel(
       id: _editClient?.id ?? 0,
       name: _nameCtrl.text.trim(),
@@ -67,11 +101,20 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
           _poaCtrl.text.trim().isNotEmpty ? _poaCtrl.text.trim() : null,
       password: (!_isEditing && password.isNotEmpty) ? password : null,
     );
+    
     final ctrl = Get.find<ClientController>();
+    int? clientId;
+    
     if (_isEditing) {
-      ctrl.updateClient(_editClient!.id, client);
+      final success = await ctrl.updateClient(_editClient!.id, client);
+      if (success) clientId = _editClient!.id;
     } else {
-      ctrl.createClient(client);
+      clientId = await ctrl.createClient(client);
+    }
+    
+    // Upload image if selected
+    if (clientId != null && _selectedImagePath != null) {
+      await ctrl.uploadProfilePicture(clientId, _selectedImagePath!);
     }
   }
 
@@ -90,6 +133,42 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
           key: _formKey,
           child: Column(
             children: [
+              // Profile Picture Picker
+              Center(
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: _selectedImagePath != null 
+                        ? FileImage(File(_selectedImagePath!))
+                        : (_editClient?.profilePictureUrl != null 
+                            ? NetworkImage(_editClient!.profilePictureUrl!) as ImageProvider
+                            : null),
+                      child: (_selectedImagePath == null && _editClient?.profilePictureUrl == null)
+                        ? Icon(Icons.person, size: 50, color: Colors.grey[400])
+                        : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: AppTheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              
               _buildField(
                 controller: _nameCtrl,
                 label: 'client_full_name'.tr,
@@ -111,8 +190,9 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) {
-                  // الباك-إند يطلب إيميل دائماً عند الإنشاء
-                  if (v == null || v.trim().isEmpty) return 'البريد الإلكتروني مطلوب';
+                  if (v != null && v.trim().isNotEmpty && !v.contains('@')) {
+                    return 'بريد إلكتروني غير صالح';
+                  }
                   return null;
                 },
               ),
@@ -155,8 +235,8 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                   icon: Icons.lock_outline,
                   obscureText: true,
                   validator: (v) {
-                    if (!_isEditing && (v == null || v.length < 6)) {
-                      return 'كلمة المرور مطلوبة ويجب أن تكون 6 أحرف على الأقل';
+                    if (!_isEditing && v != null && v.isNotEmpty && v.length < 6) {
+                      return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
                     }
                     return null;
                   },

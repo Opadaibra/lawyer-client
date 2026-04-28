@@ -1,251 +1,217 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../controllers/main_navigation_controller.dart';
-import '../../controllers/auth_controller.dart';
 import '../../app/routes/app_routes.dart';
-import '../../controllers/case_controller.dart';
-import '../../controllers/client_controller.dart';
-import '../../controllers/notification_controller.dart';
+import '../../controllers/auth_controller.dart';
 import '../../core/theme/app_theme.dart';
 import 'dashboard_screen.dart';
-import 'tasks/tasks_screen.dart';
+import 'cases/cases_screen.dart';
+import 'minutes/minutes_screen.dart';
+import 'clients/clients_screen.dart';
 
-class MainNavigationScreen extends StatelessWidget {
+class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = Get.put(MainNavigationController());
-    final auth = Get.find<AuthController>();
-    final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
 
-    final List<Widget> pages = [
-      const SizedBox.shrink(), // Placeholder for Menu button
-      const DashboardScreen(isNested: true),
-      const TasksScreen(isNested: true),
-      const StarredScreen(),
-    ];
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = [
+    const DashboardScreen(),
+    const CasesScreen(),
+    const MinutesScreen(),
+    const ClientsScreen(),
+  ];
+
+  final List<String> _titles = [
+    'home',
+    'cases',
+    'minutes',
+    'clients',
+  ];
+
+  void _onNavigate(int index) {
+    setState(() => _currentIndex = index);
+    Get.back(); // إغلاق الدراور
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Get.find<AuthController>();
 
     return Scaffold(
-      key: scaffoldKey,
-      appBar: AppBar(
-        title: Text('app_name'.tr,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-        actions: [
-          Obx(() {
-            final notifCtrl = Get.find<NotificationController>();
-            final count = notifCtrl.unreadCount.value;
-            return Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                  tooltip: 'notifications'.tr,
-                  onPressed: () => Get.toNamed(AppRoutes.notifications),
-                ),
-                if (count > 0)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        count > 99 ? '99+' : count.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          }),
-          PopupMenuButton<String>(
-            icon: CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.2),
-              child: const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            onSelected: (value) {
-              switch (value) {
-                case 'profile':
-                  Get.toNamed(AppRoutes.profile);
-                  break;
-                case 'office':
-                  Get.toNamed(AppRoutes.officeInfo);
-                  break;
-                case 'logout':
-                  auth.logout();
-                  break;
-              }
-            },
-            itemBuilder: (ctx) => [
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(children: [
-                  const Icon(Icons.person_outline, size: 18),
-                  const SizedBox(width: 8),
-                  Text('profile'.tr),
-                ]),
-              ),
-              PopupMenuItem(
-                value: 'office',
-                child: Row(children: [
-                  const Icon(Icons.business_outlined, size: 18),
-                  const SizedBox(width: 8),
-                  Text('office_info'.tr),
-                ]),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(children: [
-                  const Icon(Icons.logout, size: 18, color: Colors.red),
-                  const SizedBox(width: 8),
-                  Text('logout'.tr, style: const TextStyle(color: Colors.red)),
-                ]),
-              ),
-            ],
+      key: _scaffoldKey,
+      appBar: _currentIndex == 0 
+        ? _buildHomeAppBar(context, auth) 
+        : _buildDefaultAppBar(_titles[_currentIndex].tr),
+      drawer: AppDrawer(
+        currentIndex: _currentIndex,
+        onNavigate: _onNavigate,
+      ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppTheme.primary,
+        unselectedItemColor: Colors.grey,
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: 'home'.tr,
           ),
-          const SizedBox(width: 8),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.folder_outlined),
+            activeIcon: const Icon(Icons.folder),
+            label: 'cases'.tr,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.description_outlined),
+            activeIcon: const Icon(Icons.description),
+            label: 'minutes'.tr,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.people_outline),
+            activeIcon: const Icon(Icons.people),
+            label: 'clients'.tr,
+          ),
         ],
       ),
-      drawer: AppDrawer(auth: auth, nav: controller),
-      body: Obx(() => IndexedStack(
-            index: controller.currentIndex.value,
-            children: pages,
-          )),
-      bottomNavigationBar: Obx(() => BottomNavigationBar(
-            currentIndex: controller.currentIndex.value,
-            onTap: (index) {
-              if (index == 0) {
-                scaffoldKey.currentState?.openDrawer();
-              } else {
-                controller.changeIndex(index);
-              }
-            },
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppTheme.primary,
-            unselectedItemColor: Colors.grey,
-            items: [
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.menu),
-                label: 'menu'.tr,
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.home_outlined),
-                label: 'home'.tr,
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.task_outlined),
-                label: 'tasks'.tr,
-              ),
-              BottomNavigationBarItem(
-                icon: const Icon(Icons.star_outline),
-                label: 'featured'.tr,
-              ),
-            ],
-          )),
+      floatingActionButton: _currentIndex == 0 
+        ? FloatingActionButton(
+            heroTag: 'main_dashboard_fab',
+            onPressed: () => Get.toNamed(AppRoutes.taskForm),
+            backgroundColor: AppTheme.primary,
+            child: const Icon(Icons.add),
+          )
+        : null,
+    );
+  }
+
+  AppBar _buildHomeAppBar(BuildContext context, AuthController auth) {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.menu),
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+      ),
+      title: Text('home'.tr),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_outlined),
+          onPressed: () => Get.toNamed(AppRoutes.notifications),
+        ),
+        PopupMenuButton<String>(
+          icon: CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.white24,
+            child: const Icon(Icons.person, color: Colors.white, size: 18),
+          ),
+          onSelected: (value) {
+            if (value == 'office') Get.toNamed(AppRoutes.officeInfo);
+            if (value == 'team') Get.toNamed(AppRoutes.team);
+            if (value == 'logout') auth.logout();
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(value: 'office', child: ListTile(leading: const Icon(Icons.business), title: Text('office_info'.tr), dense: true)),
+            PopupMenuItem(value: 'team', child: ListTile(leading: const Icon(Icons.group), title: Text('team'.tr), dense: true)),
+            const PopupMenuDivider(),
+            PopupMenuItem(value: 'logout', child: ListTile(leading: const Icon(Icons.logout, color: Colors.red), title: Text('logout'.tr, style: const TextStyle(color: Colors.red)), dense: true)),
+          ],
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  AppBar _buildDefaultAppBar(String title) {
+    return AppBar(
+      title: Text(title),
+      leading: IconButton(
+        icon: const Icon(Icons.menu),
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+      ),
     );
   }
 }
 
 class AppDrawer extends StatelessWidget {
-  final AuthController auth;
-  final MainNavigationController nav;
+  final int currentIndex;
+  final Function(int) onNavigate;
 
-  const AppDrawer({super.key, required this.auth, required this.nav});
+  const AppDrawer({super.key, required this.currentIndex, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
+    final auth = Get.find<AuthController>();
+
     return Drawer(
       child: Column(
         children: [
           UserAccountsDrawerHeader(
             decoration: const BoxDecoration(color: AppTheme.primary),
-            accountName: Text(auth.userName),
-            accountEmail: Text(auth.userEmail),
             currentAccountPicture: const CircleAvatar(
-              backgroundColor: Colors.white24,
-              child: Icon(Icons.person, color: Colors.white, size: 40),
+              backgroundColor: Colors.white,
+              child: Icon(Icons.person, color: AppTheme.primary, size: 40),
             ),
+            accountName: Obx(() => Text(auth.userName)),
+            accountEmail: Obx(() => Text(auth.userEmail)),
           ),
           _DrawerTile(
-            icon: Icons.calendar_today_outlined,
-            label: 'calendar'.tr,
-            onTap: () {
-              Get.back();
-              nav.openSystemCalendar();
-            },
+            icon: Icons.home_outlined, 
+            label: 'home'.tr, 
+            selected: currentIndex == 0,
+            onTap: () => onNavigate(0)
           ),
           _DrawerTile(
-            icon: Icons.people_outline,
-            label: 'clients'.tr,
-            onTap: () {
-              Get.back();
-              Get.toNamed(AppRoutes.clients);
-            },
+            icon: Icons.task_outlined, 
+            label: 'tasks'.tr, 
+            onTap: () { 
+              Get.back(); 
+              Get.toNamed(AppRoutes.tasks); 
+            }
           ),
           _DrawerTile(
-            icon: Icons.attach_file_outlined,
-            label: 'files'.tr,
-            onTap: () {
-              Get.back();
-              Get.toNamed(AppRoutes.files);
-            },
+            icon: Icons.folder_outlined, 
+            label: 'cases'.tr, 
+            selected: currentIndex == 1,
+            onTap: () => onNavigate(1)
           ),
           _DrawerTile(
-            icon: Icons.folder_outlined,
-            label: 'cases'.tr,
-            onTap: () {
-              Get.back();
-              Get.toNamed(AppRoutes.cases);
-            },
+            icon: Icons.description_outlined, 
+            label: 'minutes'.tr, 
+            selected: currentIndex == 2,
+            onTap: () => onNavigate(2)
           ),
           _DrawerTile(
-            icon: Icons.article_outlined,
-            label: 'minutes'.tr,
-            onTap: () {
-              Get.back();
-              Get.toNamed(AppRoutes.minutes);
-            },
+            icon: Icons.people_outline, 
+            label: 'clients'.tr, 
+            selected: currentIndex == 3,
+            onTap: () => onNavigate(3)
           ),
+          const Divider(),
           _DrawerTile(
-            icon: Icons.archive_outlined,
-            label: 'archive'.tr,
-            onTap: () {
-              Get.back();
-              Get.toNamed(AppRoutes.archive);
-            },
-          ),
-          _DrawerTile(
-            icon: Icons.notifications_none,
-            label: 'notifications'.tr,
-            onTap: () {
-              Get.back();
-              Get.toNamed(AppRoutes.notifications);
-            },
+            icon: Icons.attach_file, 
+            label: 'files'.tr, 
+            onTap: () { 
+              Get.back(); 
+              Get.toNamed(AppRoutes.files); 
+            }
           ),
           const Spacer(),
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: Text('logout'.tr, style: const TextStyle(color: Colors.redAccent)),
-            onTap: () => auth.logout(),
+          _DrawerTile(
+            icon: Icons.logout, 
+            label: 'logout'.tr, 
+            onTap: () => auth.logout()
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -256,105 +222,25 @@ class _DrawerTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool selected;
 
-  const _DrawerTile({required this.icon, required this.label, required this.onTap});
+  const _DrawerTile({
+    required this.icon, 
+    required this.label, 
+    required this.onTap,
+    this.selected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primary),
-      title: Text(label),
+      leading: Icon(icon, color: selected ? AppTheme.primary : Colors.grey[700]), 
+      title: Text(label, style: TextStyle(
+        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        color: selected ? AppTheme.primary : Colors.black87,
+      )), 
+      selected: selected,
       onTap: onTap,
-    );
-  }
-}
-
-class StarredScreen extends StatelessWidget {
-  const StarredScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final caseCtrl = Get.find<CaseController>();
-    final clientCtrl = Get.find<ClientController>();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('featured'.tr),
-        centerTitle: true,
-      ),
-      body: Obx(() {
-        final starredCases = caseCtrl.cases.where((c) => c.isStarred).toList();
-        final starredClients = clientCtrl.clients.where((c) => c.isStarred).toList();
-
-        if (starredCases.isEmpty && starredClients.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.star_border, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text('no_featured_items'.tr, style: TextStyle(color: Colors.grey[600])),
-              ],
-            ),
-          );
-        }
-
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            if (starredCases.isNotEmpty) ...[
-              _buildSectionHeader('cases'.tr),
-              const SizedBox(height: 8),
-              ...starredCases.map((c) => _buildFeaturedTile(
-                    context,
-                    title: c.caseNumber,
-                    subtitle: c.subject ?? '',
-                    icon: Icons.folder_outlined,
-                    onTap: () => Get.toNamed(AppRoutes.caseDetail, arguments: {'case': c}),
-                  )),
-              const SizedBox(height: 16),
-            ],
-            if (starredClients.isNotEmpty) ...[
-              _buildSectionHeader('clients'.tr),
-              const SizedBox(height: 8),
-              ...starredClients.map((c) => _buildFeaturedTile(
-                    context,
-                    title: c.name,
-                    subtitle: c.phone ?? '',
-                    icon: Icons.person_outline,
-                    onTap: () => Get.toNamed(AppRoutes.clientDetail, arguments: {'client': c}),
-                  )),
-            ],
-          ],
-        );
-      }),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primary),
-    );
-  }
-
-  Widget _buildFeaturedTile(BuildContext context, {required String title, required String subtitle, required IconData icon, required VoidCallback onTap}) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.withOpacity(0.2)),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppTheme.primary.withOpacity(0.1),
-          child: Icon(icon, color: AppTheme.primary, size: 20),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-        onTap: onTap,
-      ),
     );
   }
 }

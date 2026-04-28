@@ -151,6 +151,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
       ),
       floatingActionButton: canMutate
           ? FloatingActionButton.extended(
+              heroTag: 'clients_fab',
               onPressed: () => Get.toNamed(AppRoutes.clientForm),
               icon: const Icon(Icons.add),
               label: Text('add_client'.tr),

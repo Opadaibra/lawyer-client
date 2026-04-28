@@ -1,10 +1,10 @@
 import 'dart:async';
-
 import 'package:get/get.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/storage_service.dart';
 import '../../data/models/user_model.dart';
 import '../../app/routes/app_routes.dart';
+import '../../core/constants/app_constants.dart';
 import 'notification_controller.dart';
 
 class AuthController extends GetxController {
@@ -29,23 +29,25 @@ class AuthController extends GetxController {
   // ─── Login ────────────────────────────────────────────────────────────────
   Future<void> login(String email, String password) async {
     isLoading.value = true;
-    print('Email' + email);
     try {
       final response = await _api.post(
         '/login',
         data: {'email': email.trim(), 'password': password},
       );
-      print('response' + response.toString());
 
-      final token = response['authorization']['token'] as String? ??
-          response['access_token'] as String? ??
-          response['authorization']['token'] as String?;
+      final token = response['authorization']?['token'] as String? ??
+          response['access_token'] as String?;
+      final refreshToken = response['authorization']?['refresh_token'] as String? ??
+          response['refresh_token'] as String?;
 
       if (token == null) {
         throw Exception(response['message'] ?? 'Login failed');
       }
 
       await StorageService.setToken(token);
+      if (refreshToken != null) {
+        await StorageService.setRefreshToken(refreshToken);
+      }
 
       // Parse user from response
       final userData = response['user'] as Map<String, dynamic>? ??
@@ -67,8 +69,6 @@ class AuthController extends GetxController {
         Get.offAllNamed(AppRoutes.dashboard);
       }
     } catch (e) {
-      print('response' + e.toString());
-
       Get.snackbar(
         'Login Failed / فشل تسجيل الدخول',
         e.toString().replaceFirst('Exception: ', ''),
@@ -99,7 +99,15 @@ class AuthController extends GetxController {
           response['data']?['token'] as String?;
 
       if (token != null) {
+        final refreshToken = response['authorization']?['refresh_token'] as String? ??
+            response['refresh_token'] as String? ??
+            response['data']?['refresh_token'] as String?;
+
         await StorageService.setToken(token);
+        if (refreshToken != null) {
+          await StorageService.setRefreshToken(refreshToken);
+        }
+
         final userData = response['user'] as Map<String, dynamic>? ??
             response['data']?['user'] as Map<String, dynamic>?;
         if (userData != null) {
@@ -139,9 +147,38 @@ class AuthController extends GetxController {
     Get.offAllNamed(AppRoutes.login);
   }
 
+  // ─── Refresh Token ────────────────────────────────────────────────────────
+  Future<bool> refreshToken() async {
+    final oldRefreshToken = StorageService.getRefreshToken();
+    if (oldRefreshToken == null) return false;
+
+    try {
+      final response = await _api.post(
+        AppConstants.refresh,
+        data: {'refresh_token': oldRefreshToken},
+      );
+
+      final token = response['authorization']?['token'] as String? ??
+          response['access_token'] as String?;
+      final nextRefreshToken = response['authorization']?['refresh_token'] as String? ??
+          response['refresh_token'] as String?;
+
+      if (token != null) {
+        await StorageService.setToken(token);
+        if (nextRefreshToken != null) {
+          await StorageService.setRefreshToken(nextRefreshToken);
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Refresh token failed: $e');
+      return false;
+    }
+  }
+
   String get userName => currentUser.value?.name ?? 'محامي';
   String get userEmail => currentUser.value?.email ?? '';
   String get userRole => currentUser.value?.role ?? '';
   bool get isClient => currentUser.value?.isClient ?? false;
 }
-

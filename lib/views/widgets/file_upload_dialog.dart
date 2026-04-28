@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../controllers/case_controller.dart';
 import '../../../controllers/client_controller.dart';
+import '../../../controllers/minute_controller.dart';
 import '../../../core/theme/app_theme.dart';
 
 class FileUploadDialog extends StatefulWidget {
-  const FileUploadDialog({super.key});
+  final String? initialType;
+  final int? initialId;
+
+  const FileUploadDialog({super.key, this.initialType, this.initialId});
 
   @override
   State<FileUploadDialog> createState() => _FileUploadDialogState();
@@ -14,20 +18,28 @@ class FileUploadDialog extends StatefulWidget {
 class _FileUploadDialogState extends State<FileUploadDialog> {
   final caseCtrl = Get.find<CaseController>();
   final clientCtrl = Get.find<ClientController>();
+  final minuteCtrl = Get.find<MinuteController>();
 
-  String? selectedType; // 'case', 'client'
+  String? selectedType; // 'case', 'client', 'minute'
   int? selectedId;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedType = widget.initialType;
+    selectedId = widget.initialId;
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Upload File / رفع ملف'),
+      title: const Text('رفع ملف'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Link to (Optional): / ربط بـ (اختياري):',
+            const Text('ربط بـ (اختياري):',
                 style: TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 12),
             
@@ -35,13 +47,14 @@ class _FileUploadDialogState extends State<FileUploadDialog> {
             DropdownButtonFormField<String>(
               value: selectedType,
               decoration: const InputDecoration(
-                labelText: 'Entity Type / نوع الربط',
+                labelText: 'نوع الربط',
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(value: 'case', child: Text('Case / قضية')),
-                DropdownMenuItem(value: 'client', child: Text('Client / موكل')),
-                DropdownMenuItem(value: null, child: Text('None / بدون ربط')),
+                DropdownMenuItem(value: 'case', child: Text('قضية')),
+                DropdownMenuItem(value: 'client', child: Text('موكل')),
+                DropdownMenuItem(value: 'minute', child: Text('ضبط')),
+                DropdownMenuItem(value: null, child: Text('بدون ربط')),
               ],
               onChanged: (v) {
                 setState(() {
@@ -58,7 +71,7 @@ class _FileUploadDialogState extends State<FileUploadDialog> {
                 DropdownButtonFormField<int>(
                   value: selectedId,
                   decoration: const InputDecoration(
-                    labelText: 'Select Case / اختر القضية',
+                    labelText: 'اختر القضية',
                     border: OutlineInputBorder(),
                   ),
                   items: caseCtrl.cases.map((c) => DropdownMenuItem(
@@ -71,12 +84,25 @@ class _FileUploadDialogState extends State<FileUploadDialog> {
                 DropdownButtonFormField<int>(
                   value: selectedId,
                   decoration: const InputDecoration(
-                    labelText: 'Select Client / اختر الموكل',
+                    labelText: 'اختر الموكل',
                     border: OutlineInputBorder(),
                   ),
                   items: clientCtrl.clients.map((c) => DropdownMenuItem(
                     value: c.id,
                     child: Text(c.name),
+                  )).toList(),
+                  onChanged: (v) => setState(() => selectedId = v),
+                )
+              else if (selectedType == 'minute')
+                DropdownButtonFormField<int>(
+                  value: selectedId,
+                  decoration: const InputDecoration(
+                    labelText: 'اختر الضبط',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: minuteCtrl.minutes.map((m) => DropdownMenuItem(
+                    value: m.id,
+                    child: Text(m.title.isNotEmpty ? m.title : 'ضبط #${m.id}'),
                   )).toList(),
                   onChanged: (v) => setState(() => selectedId = v),
                 ),
@@ -85,7 +111,7 @@ class _FileUploadDialogState extends State<FileUploadDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+        TextButton(onPressed: () => Get.back(), child: const Text('إلغاء')),
         ElevatedButton(
           onPressed: () {
             Map<String, String>? fields;
@@ -96,7 +122,7 @@ class _FileUploadDialogState extends State<FileUploadDialog> {
             }
             Get.back(result: fields);
           },
-          child: const Text('Select File & Upload'),
+          child: const Text('اختيار ملف ورفعه'),
         ),
       ],
     );

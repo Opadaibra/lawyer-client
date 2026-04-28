@@ -1,8 +1,7 @@
 // App constants
 class AppConstants {
   // static const String baseUrl = 'http://127.0.0.1/api';
-  static const String baseUrl =
-      'https://unliberalised-maximumly-brittanie.ngrok-free.dev/api';
+  static const String baseUrl = 'https://lawyer-server.de/api';
 
   // Auth endpoints
   static const String login = '/login';
@@ -29,8 +28,11 @@ class AppConstants {
 
   // Client portal
   static const String clientPortal = '/client-portal/cases';
+
   /// إشعارات الموكل فقط (بوابة الموكل)
-  static const String clientPortalNotifications = '/client-portal/notifications';
+  static const String clientPortalNotifications =
+      '/client-portal/notifications';
+
   /// ملخص أتعاب الموكل وسجلاتها
   static const String clientPortalFees = '/client-portal/fees';
 
@@ -63,5 +65,8 @@ class AppConstants {
   ];
 
   // App name
-  static const String appName = 'Lawyer Office';
+  static const String appName = 'مكتب المحامي';
+
+  // Refresh endpoint
+  static const String refresh = '/refresh/';
 }

@@ -4,10 +4,12 @@ import '../../../controllers/auth_controller.dart';
 import '../../../data/models/minute_model.dart';
 import '../../../data/models/file_model.dart';
 import '../../../controllers/minute_controller.dart';
+import '../../../controllers/file_controller.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/helpers.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/file_upload_dialog.dart';
 
 class MinuteDetailScreen extends StatelessWidget {
   const MinuteDetailScreen({super.key});
@@ -23,7 +25,7 @@ class MinuteDetailScreen extends StatelessWidget {
     if (minuteData == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('غير موجود')),
-        body: const Center(child: Text('تفاصيل المحضر غير موجودة')),
+        body: const Center(child: Text('تفاصيل الضبط غير موجودة')),
       );
     }
 
@@ -33,6 +35,7 @@ class MinuteDetailScreen extends StatelessWidget {
     return Obx(() {
       final ctrl = Get.find<MinuteController>();
       final auth = Get.find<AuthController>();
+      final fileCtrl = Get.find<FileController>();
       final canMutate =
           auth.currentUser.value?.canMutateOfficeContent ?? true;
       final minute =
@@ -40,7 +43,7 @@ class MinuteDetailScreen extends StatelessWidget {
 
       return Scaffold(
         appBar: CustomAppBar(
-          title: 'تفاصيل المحضر',
+          title: 'تفاصيل الضبط',
           actions: [
             if (canMutate) ...[
               IconButton(
@@ -109,7 +112,7 @@ class MinuteDetailScreen extends StatelessWidget {
                           children: [
                             const Icon(Icons.tag, size: 16, color: Colors.grey),
                             const SizedBox(width: 4),
-                            Text('رقم المحضر: ${minute.minuteNumber}', style: const TextStyle(color: Colors.grey)),
+                            Text('رقم الضبط: ${minute.minuteNumber}', style: const TextStyle(color: Colors.grey)),
                           ],
                         ),
                       ],
@@ -159,13 +162,13 @@ class MinuteDetailScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              Text(
+                'المرفقات',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
               if (minute.files != null && minute.files!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'المرفقات القادمة مع المحضر',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
                 Card(
                   child: ListView.separated(
                     shrinkWrap: true,
@@ -187,10 +190,34 @@ class MinuteDetailScreen extends StatelessWidget {
                     },
                   ),
                 ),
-              ],
+              ] else
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('لا توجد مرفقات', style: TextStyle(color: Colors.grey)),
+                  ),
+                ),
+              const SizedBox(height: 80),
             ],
           ),
         ),
+        floatingActionButton: canMutate ? FloatingActionButton.extended(
+          heroTag: 'minute_detail_fab',
+          onPressed: () async {
+            final result = await Get.dialog<Map<String, String>?>(
+              FileUploadDialog(initialType: 'minute', initialId: minute.id),
+            );
+            if (result != null) {
+              final success = await fileCtrl.pickAndUpload(extraFields: result);
+              if (success) {
+                ctrl.fetchMinuteById(minute.id); // Refresh to show new file
+              }
+            }
+          },
+          icon: const Icon(Icons.upload_file),
+          label: const Text('رفع مرفق'),
+          backgroundColor: AppTheme.accent,
+        ) : null,
       );
     });
   }

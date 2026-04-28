@@ -103,7 +103,7 @@ class TaskController extends GetxController {
     isSubmitting.value = true;
     try {
       final response =
-          await _api.post('${AppConstants.tasks}/', data: task.toCreateJson());
+          await _api.post(AppConstants.tasks, data: task.toCreateJson());
       final newTaskId = _parseNewTaskId(response);
       if (newTaskId != null) {
         final recipientId =

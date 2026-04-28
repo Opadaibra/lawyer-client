@@ -215,6 +215,7 @@ class _MinutesScreenState extends State<MinutesScreen> {
           return const SizedBox.shrink();
         }
         return FloatingActionButton.extended(
+          heroTag: 'minutes_fab',
           onPressed: () => Get.toNamed(AppRoutes.minuteForm),
           icon: const Icon(Icons.add),
           label: Text('add_minute'.tr),

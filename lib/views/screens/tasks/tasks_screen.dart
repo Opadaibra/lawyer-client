@@ -69,6 +69,7 @@ class TasksScreen extends StatelessWidget {
       }),
       floatingActionButton: canMutate
           ? FloatingActionButton.extended(
+              heroTag: 'tasks_fab',
               onPressed: () => Get.toNamed(AppRoutes.taskForm),
               icon: const Icon(Icons.add),
               label: Text('new_task'.tr),

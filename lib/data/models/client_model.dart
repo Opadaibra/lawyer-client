@@ -7,6 +7,7 @@ class ClientModel {
   final String? notes;
   final String? powerOfAttorneyNumber;
   final bool isStarred;
+  final String? profilePicture;
   final String? createdAt;
   // حقل مؤقت فقط عند الإنشاء - لا يحفظ من السيرفر
   final String? password;
@@ -20,9 +21,16 @@ class ClientModel {
     this.notes,
     this.powerOfAttorneyNumber,
     this.isStarred = false,
+    this.profilePicture,
     this.createdAt,
     this.password,
   });
+
+  String? get profilePictureUrl {
+    if (profilePicture == null || profilePicture!.isEmpty) return null;
+    if (profilePicture!.startsWith('http')) return profilePicture;
+    return 'http://127.0.0.1:8000/storage/$profilePicture';
+  }
 
   factory ClientModel.fromJson(Map<String, dynamic> json) => ClientModel(
         id: json['id'] as int? ?? 0,
@@ -33,6 +41,7 @@ class ClientModel {
         notes: json['notes'] as String?,
         powerOfAttorneyNumber: json['power_of_attorney_number'] as String?,
         isStarred: json['is_starred'] as bool? ?? false,
+        profilePicture: json['image'] as String? ?? json['profile_picture'] as String?,
         createdAt: json['created_at'] as String?,
       );
 
@@ -45,6 +54,7 @@ class ClientModel {
         'notes': notes,
         'power_of_attorney_number': powerOfAttorneyNumber,
         'is_starred': isStarred,
+        'image': profilePicture,
         'created_at': createdAt,
       };
 
@@ -54,7 +64,8 @@ class ClientModel {
         if (email != null) 'email': email,
         if (address != null) 'address': address,
         if (notes != null) 'notes': notes,
-        if (powerOfAttorneyNumber != null) 'power_of_attorney_number': powerOfAttorneyNumber,
+        if (powerOfAttorneyNumber != null)
+          'power_of_attorney_number': powerOfAttorneyNumber,
         if (password != null && password!.isNotEmpty) 'password': password,
       };
 }

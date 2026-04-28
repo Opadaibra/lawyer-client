@@ -259,7 +259,7 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
                           ),
                         ),
                         _chip(Icons.event_outlined, '$sessionCount جلسة'),
-                        _chip(Icons.article_outlined, '$minuteCount محضر'),
+                        _chip(Icons.article_outlined, '$minuteCount ضبط'),
                         _chip(Icons.attach_file, '$fileCount مرفق'),
                       ],
                     ),

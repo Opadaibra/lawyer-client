@@ -39,6 +39,10 @@ class AppTranslations extends Translations {
           'calendar': 'التقويم',
           'notifications': 'الإشعارات',
           'open_calendar': 'فتح التقويم',
+          'welcome_back': 'مرحباً بعودتك',
+          'tasks_for_day': 'مهام اليوم المختار',
+          'view_all': 'عرض الكل',
+          'no_tasks_for_selected_day': 'لا توجد مهام في هذا اليوم',
 
           // ── المصادقة ──────────────────────────────────────
           'logout': 'تسجيل الخروج',
@@ -71,7 +75,7 @@ class AppTranslations extends Translations {
           'lawyer_role': 'محامي',
           'editor_role': 'محرر',
           'manager_role': 'مدير',
-          'viewer_role': 'شاهد',
+          'viewer_role': 'مشاهد',
           'viewer_no_edit_permission':
               'صلاحياتك تسمح بالعرض فقط ولا يمكن الإضافة أو التعديل أو الحذف',
           'client_role': 'موكل',
@@ -220,11 +224,19 @@ class AppTranslations extends Translations {
           'task_case_prefix': 'القضية',
           'case_not_found': 'تعذر فتح القضية. حدّث القائمة وحاول مجدداً.',
 
-          // ── المحاضر ───────────────────────────────────────
-          'minutes': 'المحاضر',
-          'add_minute': 'إضافة محضر',
-          'no_minutes': 'لا توجد محاضر بعد',
-          'no_minutes_for_client': 'لا توجد محاضر لهذا الموكل',
+          // ── الضبوط ───────────────────────────────────────
+          'minutes': 'الضبوط',
+          'add_minute': 'إضافة ضبط',
+          'no_minutes': 'لا توجد ضبوط بعد',
+          'no_minutes_for_client': 'لا توجد ضبوط لهذا الموكل',
+          'edit_minute': 'تعديل الضبط',
+          'new_minute': 'ضبط جديد',
+          'update_minute': 'تحديث الضبط',
+          'create_minute': 'إنشاء ضبط',
+          'minute_number': 'رقم الضبط',
+          'last_procedure': 'الإجراء الأخير',
+          'title': 'العنوان',
+          'content': 'المحتوى',
 
           // ── الملفات ───────────────────────────────────────
           'files': 'الملفات',
@@ -235,6 +247,7 @@ class AppTranslations extends Translations {
           'good_morning': 'صباح الخير',
           'good_evening': 'مساء الخير',
           'quick_actions': 'إجراءات سريعة',
+          'welcome_back': 'مرحباً بك',
         }
       };
 }

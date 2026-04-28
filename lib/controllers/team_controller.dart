@@ -13,18 +13,21 @@ class TeamController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchTeamMembers();
+    fetchMembers();
   }
 
-  Future<void> fetchTeamMembers() async {
+  Future<void> fetchMembers() async {
     isLoading.value = true;
     try {
       final response = await _api.getList(AppConstants.team);
+      List<Map<String, dynamic>> list = [];
       if (response is Map && response['data'] is List) {
-        members.value = List<Map<String, dynamic>>.from(response['data']);
+        list = List<Map<String, dynamic>>.from(response['data']);
       } else if (response is List) {
-        members.value = List<Map<String, dynamic>>.from(response);
+        list = List<Map<String, dynamic>>.from(response);
       }
+      // إظهار الجميع بما فيهم الـ CLIENT حسب الطلب الجديد
+      members.value = list;
     } catch (e) {
       _showError(e);
     } finally {
@@ -32,7 +35,7 @@ class TeamController extends GetxController {
     }
   }
 
-  Future<bool> addMember(Map<String, dynamic> data) async {
+  Future<bool> addMember(String email, String role) async {
     final u = Get.find<AuthController>().currentUser.value;
     if (u?.canMutateOfficeContent != true) {
       Get.snackbar('error'.tr, 'viewer_no_edit_permission'.tr,
@@ -41,8 +44,11 @@ class TeamController extends GetxController {
     }
     isSubmitting.value = true;
     try {
-      await _api.post(AppConstants.team, data: data);
-      await fetchTeamMembers();
+      await _api.post(AppConstants.team, data: {
+        'email': email,
+        'role': role,
+      });
+      await fetchMembers();
       _showSuccess('done'.tr);
       return true;
     } catch (e) {
@@ -50,6 +56,18 @@ class TeamController extends GetxController {
       return false;
     } finally {
       isSubmitting.value = false;
+    }
+  }
+
+  Future<bool> removeMember(int id) async {
+    try {
+      await _api.delete('${AppConstants.team}/$id');
+      await fetchMembers();
+      _showSuccess('done'.tr);
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
     }
   }
 

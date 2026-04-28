@@ -14,11 +14,16 @@ class StorageService {
     return _prefs!;
   }
 
-  // Token
+  // Tokens
   static String? getToken() => prefs.getString(AppConstants.tokenKey);
   static Future<bool> setToken(String token) =>
       prefs.setString(AppConstants.tokenKey, token);
   static Future<bool> removeToken() => prefs.remove(AppConstants.tokenKey);
+
+  static String? getRefreshToken() => prefs.getString('refresh_token');
+  static Future<bool> setRefreshToken(String token) =>
+      prefs.setString('refresh_token', token);
+  static Future<bool> removeRefreshToken() => prefs.remove('refresh_token');
 
   // User data (stored as JSON)
   static Map<String, dynamic>? getUser() {

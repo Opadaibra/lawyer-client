@@ -65,17 +65,19 @@ class ClientController extends GetxController {
   }
 
   // ─── Create client ────────────────────────────────────────────────────────
-  Future<bool> createClient(ClientModel client) async {
+  Future<int?> createClient(ClientModel client) async {
     isSubmitting.value = true;
     try {
-      await _api.post('${AppConstants.clients}/', data: client.toCreateJson());
+      final response = await _api.post(AppConstants.clients, data: client.toCreateJson());
+      final data = _extractData(response);
+      final newClient = ClientModel.fromJson(data);
       await fetchClients();
       Get.back();
       _showSuccess('Client added successfully / تم إضافة الموكل');
-      return true;
+      return newClient.id;
     } catch (e) {
       _showError(e);
-      return false;
+      return null;
     } finally {
       isSubmitting.value = false;
     }
@@ -85,8 +87,7 @@ class ClientController extends GetxController {
   Future<bool> updateClient(int id, ClientModel client) async {
     isSubmitting.value = true;
     try {
-      await _api.patch(
-          '${AppConstants.clients}/$id', client.toCreateJson());
+      await _api.patch('${AppConstants.clients}/$id', client.toCreateJson());
       await fetchClients();
       Get.back();
       _showSuccess('Client updated successfully / تم تحديث الموكل');
@@ -128,7 +129,7 @@ class ClientController extends GetxController {
   // ─── Link File ────────────────────────────────────────────────────────────
   Future<void> linkFile(int clientId, int fileId) async {
     try {
-      await _api.post('${AppConstants.clients}/$clientId/link-file', 
+      await _api.post('${AppConstants.clients}/$clientId/link-file',
           data: {'file_id': fileId});
       _showSuccess('File linked successfully / تم ربط الملف');
     } catch (e) {
@@ -136,13 +137,27 @@ class ClientController extends GetxController {
     }
   }
 
+  // ─── Profile Picture Upload ───────────────────────────────────────────────
+  Future<bool> uploadProfilePicture(int clientId, String filePath) async {
+    try {
+      await _api.uploadFile(
+        filePath: filePath,
+        fileName: 'profile_picture_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        customEndpoint: '/clients/$clientId/upload-profile-picture/',
+      );
+      _showSuccess('Profile picture updated / تم تحديث صورة الموكل');
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    }
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
   List<dynamic> _parseList(dynamic response) {
     if (response is List) return response;
     if (response is Map) {
-      return response['data'] as List? ??
-          response['clients'] as List? ??
-          [];
+      return response['data'] as List? ?? response['clients'] as List? ?? [];
     }
     return [];
   }
@@ -152,13 +167,11 @@ class ClientController extends GetxController {
   }
 
   void _showError(dynamic e) {
-    Get.snackbar('Error / خطأ',
-        e.toString().replaceFirst('Exception: ', ''),
+    Get.snackbar('Error / خطأ', e.toString().replaceFirst('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM);
   }
 
   void _showSuccess(String msg) {
-    Get.snackbar('Success / نجاح', msg,
-        snackPosition: SnackPosition.BOTTOM);
+    Get.snackbar('Success / نجاح', msg, snackPosition: SnackPosition.BOTTOM);
   }
 }

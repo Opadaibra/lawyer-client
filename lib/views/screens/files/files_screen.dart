@@ -55,7 +55,7 @@ class _FilesScreenState extends State<FilesScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'Files / الملفات',
+        title: 'الملفات',
         showBack: false,
       ),
       body: Obx(() {
@@ -64,7 +64,7 @@ class _FilesScreenState extends State<FilesScreen> {
             auth.currentUser.value?.canMutateOfficeContent ?? true;
         if (fileCtrl.files.isEmpty) {
           return EmptyStateWidget(
-            title: 'No files uploaded\nلم يتم رفع ملفات',
+            title: 'لم يتم رفع ملفات',
             icon: Icons.folder_open_outlined,
             onAction: canMutate
                 ? () async {
@@ -80,7 +80,7 @@ class _FilesScreenState extends State<FilesScreen> {
                     await fileCtrl.pickAndUpload(extraFields: uploadFields);
                   }
                 : null,
-            actionLabel: 'Upload File / رفع ملف',
+            actionLabel: ' رفع ملف',
           );
         }
         return RefreshIndicator(
@@ -172,9 +172,7 @@ class _FilesScreenState extends State<FilesScreen> {
                   child: CircularProgressIndicator(
                       color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.upload_file_outlined),
-          label: Text(fileCtrl.isUploading.value
-              ? 'Uploading... / جاري الرفع'
-              : 'Upload File / رفع ملف'),
+          label: Text(fileCtrl.isUploading.value ? 'جاري الرفع' : ' رفع ملف'),
         );
       }),
     );

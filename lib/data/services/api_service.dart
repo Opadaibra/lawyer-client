@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
 import '../services/storage_service.dart';
+import '../../controllers/auth_controller.dart';
 
 class ApiService {
   static const String baseUrl = AppConstants.baseUrl;
@@ -17,20 +18,17 @@ class ApiService {
     };
   }
 
-  // ─── Helper: parse response ────────────────────────────────────────────────
   Map<String, dynamic> _parseResponse(http.Response response) {
     try {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } catch (_) {
-      return {'message': response.body, 'status_code': response.statusCode};
+      return {'message': 'فشل في قراءة بيانات الخادم', 'status_code': response.statusCode};
     }
   }
 
   void _handleError(http.Response response) {
     if (response.statusCode == 401) {
-      StorageService.clearAll();
-      Get.offAllNamed('/login');
-      throw Exception('Unauthorized. Please login again.');
+      throw Exception('دخول غير مصرح به');
     }
     if (response.statusCode >= 400) {
       Map<String, dynamic> body = {};
@@ -38,7 +36,7 @@ class ApiService {
         body = jsonDecode(response.body);
       } catch (_) {}
       
-      String message = 'Server error (${response.statusCode})';
+      String message = 'حدث خطأ في الخادم (${response.statusCode})';
 
       if (body.containsKey('errors') && body['errors'] != null) {
         if (body['errors'] is Map) {
@@ -53,118 +51,126 @@ class ApiService {
         message = body['error'].toString();
       }
 
+      // تعريب بعض الرسائل الشائعة القادمة من السيرفر إذا كانت بالإنجليزية
+      if (message.toLowerCase().contains('unauthenticated')) message = 'يرجى تسجيل الدخول للمتابعة';
+      if (message.toLowerCase().contains('server error')) message = 'حدث خطأ داخلي في الخادم';
+
       throw Exception(message);
     }
   }
 
-  // ─── GET ──────────────────────────────────────────────────────────────────
+  Future<http.Response> _requestWithRetry(
+    Future<http.Response> Function() requestFn, {
+    required String endpoint,
+    bool isRetry = false,
+  }) async {
+    try {
+      final response = await requestFn();
+      
+      if (response.statusCode == 401 && 
+          !isRetry && 
+          endpoint != AppConstants.refresh && 
+          endpoint != AppConstants.login) {
+        
+        final auth = Get.find<AuthController>();
+        final success = await auth.refreshToken();
+        
+        if (success) {
+          return await requestFn();
+        } else {
+          auth.logout();
+          throw Exception('انتهت الجلسة، يرجى تسجيل الدخول مجدداً');
+        }
+      }
+      
+      _handleError(response);
+      return response;
+    } on SocketException {
+      throw Exception('لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة');
+    } on HandshakeException {
+      throw Exception('فشل الاتصال الآمن بالخادم');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('حدث خطأ غير متوقع');
+    }
+  }
+
   Future<Map<String, dynamic>> get(String endpoint) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _getHeaders(),
-      );
-      _handleError(response);
-      return _parseResponse(response);
-    } on SocketException {
-      throw Exception('No internet connection / لا يوجد اتصال بالإنترنت');
-    }
+    final response = await _requestWithRetry(
+      () => http.get(Uri.parse('$baseUrl$endpoint'), headers: _getHeaders()),
+      endpoint: endpoint,
+    );
+    return _parseResponse(response);
   }
 
-  // ─── GET list (returns dynamic — could be list or map) ────────────────────
   Future<dynamic> getList(String endpoint) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _getHeaders(),
-      );
-      _handleError(response);
-      return jsonDecode(response.body);
-    } on SocketException {
-      throw Exception('No internet connection');
-    }
+    final response = await _requestWithRetry(
+      () => http.get(Uri.parse('$baseUrl$endpoint'), headers: _getHeaders()),
+      endpoint: endpoint,
+    );
+    return jsonDecode(response.body);
   }
 
-  // ─── POST ─────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> post(
     String endpoint, {
     Map<String, dynamic>? data,
   }) async {
-    try {
-      final response = await http.post(
+    final response = await _requestWithRetry(
+      () => http.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: _getHeaders(),
         body: data != null ? jsonEncode(data) : null,
-      );
-      _handleError(response);
-      return _parseResponse(response);
-    } on SocketException {
-      throw Exception('No internet connection');
-    }
+      ),
+      endpoint: endpoint,
+    );
+    return _parseResponse(response);
   }
 
-  // ─── PATCH ────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> patch(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
-    try {
-      final response = await http.patch(
+    final response = await _requestWithRetry(
+      () => http.patch(
         Uri.parse('$baseUrl$endpoint'),
         headers: _getHeaders(),
         body: jsonEncode(data),
-      );
-      _handleError(response);
-      return _parseResponse(response);
-    } on SocketException {
-      throw Exception('No internet connection');
-    }
+      ),
+      endpoint: endpoint,
+    );
+    return _parseResponse(response);
   }
 
-  // ─── DELETE ───────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> delete(String endpoint) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: _getHeaders(),
-      );
-      _handleError(response);
-      return _parseResponse(response);
-    } on SocketException {
-      throw Exception('No internet connection');
-    }
+    final response = await _requestWithRetry(
+      () => http.delete(Uri.parse('$baseUrl$endpoint'), headers: _getHeaders()),
+      endpoint: endpoint,
+    );
+    return _parseResponse(response);
   }
 
-  // ─── FILE UPLOAD ──────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> uploadFile({
     required String filePath,
     required String fileName,
+    String? customEndpoint,
     Map<String, String>? fields,
   }) async {
-    try {
+    final endpoint = customEndpoint ?? AppConstants.filesUpload;
+    
+    Future<http.Response> doUpload() async {
       final token = StorageService.getToken();
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl${AppConstants.filesUpload}'),
-      );
-
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
       request.headers.addAll({
         'Accept': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
       });
-
-      request.files.add(
-        await http.MultipartFile.fromPath('file', filePath, filename: fileName),
-      );
-
+      request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
       if (fields != null) request.fields.addAll(fields);
-
       final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      _handleError(response);
-      return _parseResponse(response);
-    } on SocketException {
-      throw Exception('No internet connection');
+      return await http.Response.fromStream(streamedResponse);
     }
+
+    final response = await _requestWithRetry(doUpload, endpoint: endpoint);
+    return _parseResponse(response);
   }
 }

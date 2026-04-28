@@ -50,24 +50,21 @@ class CaseController extends GetxController {
   // ─── Filtered cases ───────────────────────────────────────────────────────
   List<CaseModel> get filteredCases {
     if (filterStatus.value.isEmpty) return cases;
-    return cases
-        .where((c) => c.status == filterStatus.value)
-        .toList();
+    return cases.where((c) => c.status == filterStatus.value).toList();
   }
 
   // ─── Create case ──────────────────────────────────────────────────────────
   Future<bool> createCase(CaseModel caseModel, {int? fileId}) async {
     isSubmitting.value = true;
     try {
-      final response = await _api.post('${AppConstants.cases}/', data: caseModel.toCreateJson());
-      
+      final response =
+          await _api.post(AppConstants.cases, data: caseModel.toCreateJson());
+
       if (fileId != null) {
         final newCaseId = response['case']?['id'] ?? response['data']?['id'];
         if (newCaseId != null) {
-          await _api.post('/files/attach', data: {
-            'file_id': fileId,
-            'case_id': newCaseId
-          });
+          await _api.post('/files/attach',
+              data: {'file_id': fileId, 'case_id': newCaseId});
         }
       }
 
@@ -87,8 +84,7 @@ class CaseController extends GetxController {
   Future<bool> updateCase(int id, CaseModel caseModel) async {
     isSubmitting.value = true;
     try {
-      await _api.patch(
-          '${AppConstants.cases}/$id', caseModel.toCreateJson());
+      await _api.patch('${AppConstants.cases}/$id', caseModel.toCreateJson());
       await fetchCases();
       Get.back();
       _showSuccess('case_updated'.tr);
@@ -140,7 +136,8 @@ class CaseController extends GetxController {
   // Sessions
   Future<void> fetchSessions(int caseId) async {
     try {
-      final response = await _api.getList('${AppConstants.cases}/$caseId/sessions');
+      final response =
+          await _api.getList('${AppConstants.cases}/$caseId/sessions');
       final list = _parseList(response);
       final listModels = list.map((e) => SessionModel.fromJson(e)).toList();
       if (selectedCase.value?.id == caseId) {
@@ -175,11 +172,13 @@ class CaseController extends GetxController {
   // Notes
   Future<void> fetchNotes(int caseId) async {
     try {
-      final response = await _api.getList('${AppConstants.cases}/$caseId/notes');
+      final response =
+          await _api.getList('${AppConstants.cases}/$caseId/notes');
       final list = _parseList(response);
       final listModels = list.map((e) => CaseNoteModel.fromJson(e)).toList();
       if (selectedCase.value?.id == caseId) {
-        selectedCase.value = selectedCase.value!.copyWith(caseNotes: listModels);
+        selectedCase.value =
+            selectedCase.value!.copyWith(caseNotes: listModels);
       }
     } catch (e) {
       _showError(e);
@@ -210,7 +209,8 @@ class CaseController extends GetxController {
   // Expenses
   Future<void> fetchExpenses(int caseId) async {
     try {
-      final response = await _api.getList('${AppConstants.cases}/$caseId/expenses');
+      final response =
+          await _api.getList('${AppConstants.cases}/$caseId/expenses');
       final list = _parseList(response);
       final listModels = list.map((e) => ExpenseModel.fromJson(e)).toList();
       if (selectedCase.value?.id == caseId) {
@@ -253,6 +253,14 @@ class CaseController extends GetxController {
 
       if (raw is List) {
         listRaw = raw;
+        double sum = 0;
+        for (var item in listRaw) {
+          if (item is Map) {
+            sum += _parseMoney(item['value']);
+          }
+        }
+        agreed = sum;
+        paid = sum;
       } else if (raw is Map) {
         final m = Map<String, dynamic>.from(raw);
         agreed = _parseMoney(m['total_fees']);
@@ -294,6 +302,17 @@ class CaseController extends GetxController {
         return {
           'agreed': _parseMoney(m['total_fees']),
           'paid': _parseMoney(m['total_paid']),
+        };
+      } else if (raw is List) {
+        double total = 0;
+        for (var item in raw) {
+          if (item is Map) {
+            total += _parseMoney(item['value']);
+          }
+        }
+        return {
+          'agreed': total,
+          'paid': total,
         };
       }
     } catch (_) {}

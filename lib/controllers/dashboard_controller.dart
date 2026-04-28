@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../data/services/api_service.dart';
 import '../../data/models/client_model.dart';
@@ -29,6 +30,23 @@ class DashboardController extends GetxController {
   void onInit() {
     super.onInit();
     loadDashboard();
+  }
+
+  Future<void> refreshDashboard() => loadDashboard();
+
+  Color getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return Colors.green;
+      case 'overdue':
+        return Colors.red;
+      case 'in_progress':
+        return Colors.blue;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 
   List<TaskModel> filterTasksByDate(DateTime date) {

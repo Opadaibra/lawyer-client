@@ -1,153 +1,142 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../controllers/auth_controller.dart';
 import '../../../controllers/team_controller.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../widgets/custom_app_bar.dart';
-import '../../widgets/loading_widget.dart';
 
 class TeamScreen extends StatelessWidget {
   const TeamScreen({super.key});
 
-  static String _roleLabel(dynamic raw) {
-    final r = raw?.toString().toUpperCase() ?? '';
-    switch (r) {
-      case 'MANAGER':
-        return 'manager_role'.tr;
-      case 'LAWYER':
-        return 'lawyer_role'.tr;
-      case 'EDITOR':
-        return 'editor_role'.tr;
-      case 'VIEWER':
-        return 'viewer_role'.tr;
-      case 'CLIENT':
-        return 'client_role'.tr;
-      default:
-        return r.isEmpty ? '—' : r;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final ctrl = Get.find<TeamController>();
+    final ctrl = Get.put(TeamController());
     final auth = Get.find<AuthController>();
 
     return Scaffold(
-      appBar: CustomAppBar(
-        title: 'team'.tr,
+      appBar: const CustomAppBar(
+        title: 'فريق العمل',
+        showNotification: false,
       ),
       body: Obx(() {
-        if (ctrl.isLoading.value) return const LoadingWidget();
-        
-        return Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: ctrl.members.length,
-                padding: const EdgeInsets.all(16),
-                itemBuilder: (ctx, i) {
-                  final member = ctrl.members[i];
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppTheme.primary.withOpacity(0.1),
-                        child: Text(member['name']?[0]?.toUpperCase() ?? 'U', 
-                          style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(member['name'] ?? ''),
-                      subtitle: Text(member['email'] ?? ''),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          _roleLabel(member['role']),
-                          style: const TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+        if (ctrl.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (ctrl.members.isEmpty) {
+          return const Center(child: Text('لا يوجد أعضاء في الفريق حالياً'));
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => ctrl.fetchMembers(),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: ctrl.members.length,
+            itemBuilder: (context, index) {
+              final member = ctrl.members[index];
+              final String roleKey = (member['role']?.toString() ?? '').toLowerCase() + '_role';
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primary.withOpacity(0.1),
+                    child: const Icon(Icons.person, color: AppTheme.primary),
+                  ),
+                  title: Text(member['name']?.toString() ?? 'بدون اسم',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('${member['email']}\nالصفة: ${roleKey.tr}'),
+                  trailing:
+                      (auth.currentUser.value?.id != member['id'] && 
+                       auth.currentUser.value?.role == 'MANAGER')
+                          ? IconButton(
+                              icon: const Icon(Icons.person_remove_outlined,
+                                  color: Colors.redAccent),
+                              onPressed: () => _confirmRemove(ctrl, member['id']),
+                            )
+                          : null,
+                ),
+              );
+            },
+          ),
         );
       }),
       floatingActionButton: Obx(() {
-        if (auth.currentUser.value?.canMutateOfficeContent != true) {
-          return const SizedBox.shrink();
-        }
-        return FloatingActionButton.extended(
+        final user = auth.currentUser.value;
+        if (user?.role != 'MANAGER') return const SizedBox();
+        return FloatingActionButton(
+          heroTag: 'team_fab',
           onPressed: () => _showAddMemberDialog(context, ctrl),
-          icon: const Icon(Icons.person_add_outlined),
-          label: Text('add_member'.tr),
+          backgroundColor: AppTheme.primary,
+          child: const Icon(Icons.add),
         );
       }),
     );
   }
 
   void _showAddMemberDialog(BuildContext context, TeamController ctrl) {
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final passwordCtrl = TextEditingController();
+    final email = TextEditingController();
     final role = 'LAWYER'.obs;
 
     Get.dialog(
       AlertDialog(
-        title: Text('add_member'.tr),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(labelText: 'name'.tr),
+        title: const Text('إضافة عضو للفريق'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: email,
+              decoration: const InputDecoration(
+                labelText: 'البريد الإلكتروني',
+                hintText: 'user@example.com',
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailCtrl,
-                decoration: InputDecoration(labelText: 'email'.tr),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passwordCtrl,
-                decoration: InputDecoration(labelText: 'password'.tr),
-                obscureText: true,
-              ),
-              const SizedBox(height: 12),
-              Obx(() => DropdownButtonFormField<String>(
-                value: role.value,
-                decoration: InputDecoration(labelText: 'role'.tr),
-                items: [
-                  DropdownMenuItem(value: 'MANAGER', child: Text('manager_role'.tr)),
-                  DropdownMenuItem(value: 'LAWYER', child: Text('lawyer_role'.tr)),
-                  DropdownMenuItem(value: 'EDITOR', child: Text('editor_role'.tr)),
-                  DropdownMenuItem(value: 'VIEWER', child: Text('viewer_role'.tr)),
-                ],
-                onChanged: (v) => role.value = v!,
-              )),
-            ],
-          ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 16),
+            Obx(() => DropdownButtonFormField<String>(
+                  value: role.value,
+                  decoration: const InputDecoration(labelText: 'الدور'),
+                  items: [
+                    DropdownMenuItem(value: 'MANAGER', child: Text('manager_role'.tr)),
+                    DropdownMenuItem(value: 'LAWYER', child: Text('lawyer_role'.tr)),
+                    DropdownMenuItem(value: 'CLIENT', child: Text('client_role'.tr)),
+                  ],
+                  onChanged: (v) => role.value = v!,
+                )),
+          ],
         ),
         actions: [
-          TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
-          Obx(() => ElevatedButton(
-            onPressed: ctrl.isSubmitting.value ? null : () async {
-              final success = await ctrl.addMember({
-                'name': nameCtrl.text,
-                'email': emailCtrl.text,
-                'password': passwordCtrl.text,
-                'role': role.value,
-              });
-              if (success) Get.back();
+          TextButton(onPressed: () => Get.back(), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              if (email.text.isNotEmpty) {
+                Get.back();
+                ctrl.addMember(email.text.trim(), role.value);
+              }
             },
-            child: ctrl.isSubmitting.value 
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text('add'.tr),
-          )),
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemove(TeamController ctrl, dynamic id) {
+    if (id == null) return;
+    Get.dialog(
+      AlertDialog(
+        title: const Text('حذف عضو'),
+        content: const Text('هل أنت متأكد من حذف هذا العضو من الفريق؟'),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              ctrl.removeMember(int.parse(id.toString()));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('حذف'),
+          ),
         ],
       ),
     );
