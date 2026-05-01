@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:open_filex/open_filex.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../controllers/file_controller.dart';
 import '../../../core/theme/app_theme.dart';
@@ -92,16 +94,13 @@ class _FilesScreenState extends State<FilesScreen> {
               final file = fileCtrl.files[i];
               return Card(
                 child: ListTile(
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      width: 44,
+                      height: 44,
                       color: AppTheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      AppHelpers.getFileIcon(file.displayName),
-                      color: AppTheme.primary,
+                      child: _buildFileLeading(file),
                     ),
                   ),
                   title: Text(
@@ -179,12 +178,46 @@ class _FilesScreenState extends State<FilesScreen> {
   }
 
   void _openFile(BuildContext context, dynamic file) async {
-    if (file.absoluteUrl == null) {
-      Get.snackbar('Error', 'No file URL available');
+    if (file.absoluteUrl != null) {
+       Get.toNamed('/file-viewer', arguments: {'file': file});
+       return;
+    }
+    
+    if (file.localPath != null && File(file.localPath!).existsSync()) {
+      await OpenFilex.open(file.localPath!);
       return;
     }
-    // Navigate to in-app viewer
-    Get.toNamed('/file-viewer', arguments: {'file': file});
+    
+    Get.snackbar('Error', 'No file URL available or local path not found');
+  }
+
+  Widget _buildFileLeading(dynamic file) {
+    if (_isImage(file.displayName)) {
+      if (file.absoluteUrl != null) {
+        return Image.network(
+          file.absoluteUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(
+            AppHelpers.getFileIcon(file.displayName),
+            color: AppTheme.primary,
+          ),
+        );
+      } else if (file.localPath != null && File(file.localPath!).existsSync()) {
+        return Image.file(
+          File(file.localPath!),
+          fit: BoxFit.cover,
+        );
+      }
+    }
+    return Icon(
+      AppHelpers.getFileIcon(file.displayName),
+      color: AppTheme.primary,
+    );
+  }
+
+  bool _isImage(String fileName) {
+    final ext = fileName.split('.').last.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(ext);
   }
 
   void _confirmDelete(FileController ctrl, int id) {

@@ -50,7 +50,7 @@ class TaskModel {
   Map<String, dynamic> toCreateJson() => {
         if (caseFileId != null) 'case_file_id': caseFileId,
         'title': title,
-        if (description != null) 'description': description,
+        'description': description ?? '',
         if (taskType != null) 'task_type': taskType,
         if (nextSessionDate != null) 'next_session_date': nextSessionDate,
         if (notes != null) 'notes': notes,

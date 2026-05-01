@@ -26,6 +26,7 @@ import '../../views/screens/team/team_screen.dart';
 import '../../views/screens/client_portal/client_portal_screen.dart';
 import '../../views/screens/client_portal/client_portal_case_detail_screen.dart';
 import '../../views/screens/office/office_info_screen.dart';
+import '../../views/screens/sync/sync_screen.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -73,5 +74,6 @@ class AppPages {
     GetPage(
         name: AppRoutes.clientPortalCaseDetail,
         page: () => const ClientPortalCaseDetailScreen()),
+    GetPage(name: AppRoutes.syncData, page: () => const SyncScreen()),
   ];
 }

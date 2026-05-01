@@ -16,9 +16,7 @@ class _OfficeInfoScreenState extends State<OfficeInfoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
-  final _descriptionCtrl = TextEditingController();
 
   final officeCtrl = Get.put(OfficeController());
   final auth = Get.find<AuthController>();
@@ -35,9 +33,7 @@ class _OfficeInfoScreenState extends State<OfficeInfoScreen> {
     if (office != null) {
       _nameCtrl.text = office.name;
       _phoneCtrl.text = office.phone ?? '';
-      _emailCtrl.text = office.email ?? '';
       _addressCtrl.text = office.address ?? '';
-      _descriptionCtrl.text = office.description ?? '';
     }
   }
 
@@ -45,9 +41,7 @@ class _OfficeInfoScreenState extends State<OfficeInfoScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
-    _emailCtrl.dispose();
     _addressCtrl.dispose();
-    _descriptionCtrl.dispose();
     super.dispose();
   }
 
@@ -68,13 +62,11 @@ class _OfficeInfoScreenState extends State<OfficeInfoScreen> {
         if (office != null && _nameCtrl.text.isEmpty) {
            _nameCtrl.text = office.name;
            _phoneCtrl.text = office.phone ?? '';
-           _emailCtrl.text = office.email ?? '';
            _addressCtrl.text = office.address ?? '';
-           _descriptionCtrl.text = office.description ?? '';
         }
 
-        final canMutate =
-            auth.currentUser.value?.canMutateOfficeContent ?? false;
+        final user = auth.currentUser.value;
+        final canMutate = user == null || user.canMutateOfficeContent;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -109,26 +101,10 @@ class _OfficeInfoScreenState extends State<OfficeInfoScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildField(
-                  controller: _emailCtrl,
-                  label: 'البريد الإلكتروني',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                  readOnly: !canMutate,
-                ),
-                const SizedBox(height: 16),
-                _buildField(
                   controller: _addressCtrl,
                   label: 'العنوان',
                   icon: Icons.location_on_outlined,
                   maxLines: 2,
-                  readOnly: !canMutate,
-                ),
-                const SizedBox(height: 16),
-                _buildField(
-                  controller: _descriptionCtrl,
-                  label: 'وصف إضافي',
-                  icon: Icons.info_outline,
-                  maxLines: 3,
                   readOnly: !canMutate,
                 ),
                 const SizedBox(height: 32),
@@ -147,9 +123,7 @@ class _OfficeInfoScreenState extends State<OfficeInfoScreen> {
                                 officeCtrl.updateOffice(
                                   name: _nameCtrl.text.trim(),
                                   phone: _phoneCtrl.text.trim(),
-                                  email: _emailCtrl.text.trim(),
                                   address: _addressCtrl.text.trim(),
-                                  description: _descriptionCtrl.text.trim(),
                                 );
                               }
                             },

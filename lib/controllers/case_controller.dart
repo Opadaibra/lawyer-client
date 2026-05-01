@@ -84,7 +84,7 @@ class CaseController extends GetxController {
   Future<bool> updateCase(int id, CaseModel caseModel) async {
     isSubmitting.value = true;
     try {
-      await _api.patch('${AppConstants.cases}/$id', caseModel.toCreateJson());
+      await _api.patch('${AppConstants.cases}/$id', data: caseModel.toCreateJson());
       await fetchCases();
       Get.back();
       _showSuccess('case_updated'.tr);

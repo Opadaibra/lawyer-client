@@ -104,7 +104,7 @@ class MinuteModel {
         if (opponent != null) 'opponent': opponent,
         if (opponentCapacity != null) 'opponent_status': opponentCapacity,
         if (lastProcedure != null) 'last_procedure': lastProcedure,
-        if (content != null) 'content': content,
+        'content': content ?? '',
         if (fileId != null) 'file_id': fileId,
       };
 

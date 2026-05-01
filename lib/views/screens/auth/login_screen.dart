@@ -40,7 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppTheme.primaryDark, AppTheme.primary, AppTheme.primaryLight],
+            colors: [
+              AppTheme.primaryDark,
+              AppTheme.primary,
+              AppTheme.primaryLight
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -72,12 +76,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ).animate().fadeIn(duration: 600.ms).scale(),
                         const SizedBox(height: 16),
-                        Image.asset(
-                          'assets/images/logo.png',
-                          height: 48,
-                          color: Colors.white.withOpacity(0.5),
-                          colorBlendMode: BlendMode.srcIn,
-                        ).animate().fadeIn(delay: 200.ms),
                         const Text(
                           'نظام إدارة مكتب المحامي',
                           style: TextStyle(
@@ -113,7 +111,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     .headlineSmall
                                     ?.copyWith(
                                       fontWeight: FontWeight.w700,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                               ).animate().fadeIn(delay: 400.ms),
                               const SizedBox(height: 6),
@@ -147,8 +146,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     icon: Icon(_obscurePassword
                                         ? Icons.visibility_outlined
                                         : Icons.visibility_off_outlined),
-                                    onPressed: () => setState(
-                                        () => _obscurePassword = !_obscurePassword),
+                                    onPressed: () => setState(() =>
+                                        _obscurePassword = !_obscurePassword),
                                   ),
                                 ),
                                 validator: AppValidators.password,
@@ -173,6 +172,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                           : const Text('تسجيل الدخول'),
                                     ),
                                   )).animate().fadeIn(delay: 400.ms),
+
+                              const SizedBox(height: 16),
+                              Center(
+                                child: TextButton.icon(
+                                  onPressed: () => Get.find<AuthController>()
+                                      .enterOfflineMode(),
+                                  icon: const Icon(Icons.wifi_off),
+                                  label: const Text(
+                                      'الدخول بدون إنترنت (أوفلاين)'),
+                                ),
+                              ).animate().fadeIn(delay: 500.ms),
                             ],
                           ),
                         ),

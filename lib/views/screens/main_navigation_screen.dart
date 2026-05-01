@@ -7,6 +7,8 @@ import 'dashboard_screen.dart';
 import 'cases/cases_screen.dart';
 import 'minutes/minutes_screen.dart';
 import 'clients/clients_screen.dart';
+import '../../data/services/storage_service.dart';
+import '../../data/services/offline_sync_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -116,7 +118,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           onSelected: (value) {
             if (value == 'office') Get.toNamed(AppRoutes.officeInfo);
             if (value == 'team') Get.toNamed(AppRoutes.team);
-            if (value == 'logout') auth.logout();
+            if (value == 'logout') _confirmLogout(auth);
           },
           itemBuilder: (context) => [
             PopupMenuItem(value: 'office', child: ListTile(leading: const Icon(Icons.business), title: Text('office_info'.tr), dense: true)),
@@ -138,6 +140,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
       ),
     );
+  }
+  void _confirmLogout(AuthController auth) {
+    Get.dialog(AlertDialog(
+      title: Text('logout'.tr),
+      content: const Text('سيتم تسجيل الخروج. انتبه: أي بيانات لم يتم مزامنتها مسبقاً قد يتم فقدانها.'),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+        ElevatedButton(
+          onPressed: () {
+            Get.back();
+            auth.logout();
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: Text('logout'.tr),
+        ),
+      ],
+    ));
   }
 }
 
@@ -204,12 +223,38 @@ class AppDrawer extends StatelessWidget {
               Get.toNamed(AppRoutes.files); 
             }
           ),
+          const Divider(),
+          _DrawerTile(
+            icon: Icons.sync, 
+            label: 'المزامنة (رفع البيانات)'.tr, 
+            onTap: () { 
+              Get.back(); 
+              Get.toNamed(AppRoutes.syncData); 
+            }
+          ),
           const Spacer(),
           const Divider(),
           _DrawerTile(
             icon: Icons.logout, 
             label: 'logout'.tr, 
-            onTap: () => auth.logout()
+            onTap: () {
+              Get.back(); // close drawer
+              Get.dialog(AlertDialog(
+                title: Text('logout'.tr),
+                content: const Text('سيتم تسجيل الخروج. انتبه: أي بيانات لم يتم مزامنتها مسبقاً قد يتم فقدانها.'),
+                actions: [
+                  TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+                  ElevatedButton(
+                    onPressed: () {
+                      Get.back();
+                      auth.logout();
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: Text('logout'.tr),
+                  ),
+                ],
+              ));
+            }
           ),
           const SizedBox(height: 16),
         ],

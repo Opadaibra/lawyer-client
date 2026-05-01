@@ -152,7 +152,23 @@ class _ClientPortalScreenState extends State<ClientPortalScreen> {
                   IconButton(
                     icon: const Icon(Icons.logout, color: Colors.white),
                     tooltip: 'تسجيل الخروج',
-                    onPressed: () => auth.logout(),
+                    onPressed: () {
+                      Get.dialog(AlertDialog(
+                        title: Text('logout'.tr),
+                        content: const Text('سيتم تسجيل الخروج. انتبه: أي بيانات لم يتم مزامنتها مسبقاً قد يتم فقدانها.'),
+                        actions: [
+                          TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+                          ElevatedButton(
+                            onPressed: () {
+                              Get.back();
+                              auth.logout();
+                            },
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            child: Text('logout'.tr),
+                          ),
+                        ],
+                      ));
+                    },
                   ),
                 ],
               ),

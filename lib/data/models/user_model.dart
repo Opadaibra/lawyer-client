@@ -32,10 +32,11 @@ class UserModel {
 
   /// مدير / محامٍ / محرر يمكنهم تعديل بيانات المكتب؛ الشاهد والموكل لا.
   bool get canMutateOfficeContent {
-    if (isClient) return false;
     final r = role?.toUpperCase().trim();
-    if (r == null || r.isEmpty) return true;
-    return r != 'VIEWER';
+    if (r == 'CLIENT') return false;
+    if (r == 'VIEWER') return false;
+    // Default to true for Manager, Lawyer, Editor or undefined roles
+    return true;
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(

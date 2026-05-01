@@ -10,6 +10,8 @@ class FileModel {
   final int? size;
   final String? createdAt;
 
+  final String? localPath;
+
   FileModel({
     required this.id,
     this.fileName,
@@ -19,6 +21,7 @@ class FileModel {
     this.mimeType,
     this.size,
     this.createdAt,
+    this.localPath,
   });
 
   factory FileModel.fromJson(Map<String, dynamic> json) => FileModel(
@@ -30,6 +33,7 @@ class FileModel {
         mimeType: json['file_type'] as String?,
         size: json['file_size'] as int?,
         createdAt: json['created_at'] as String?,
+        localPath: json['local_path'] as String?,
       );
 
   String get displayName => originalName ?? fileName ?? 'File $id';

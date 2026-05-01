@@ -148,6 +148,22 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       AppHelpers.formatDateHuman(client.createdAt),
                       Icons.calendar_today_outlined,
                     ),
+                    if (canMutate) ...[
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showChangePasswordDialog(context, clientCtrl, client.id),
+                          icon: const Icon(Icons.lock_reset, color: AppTheme.primary),
+                          label: const Text('إعادة تعيين كلمة المرور', style: TextStyle(color: AppTheme.primary)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppTheme.primary),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -185,6 +201,59 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context, ClientController ctrl, int clientId) {
+    final passwordCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+
+    Get.dialog(
+      AlertDialog(
+        title: const Text('إعادة تعيين كلمة المرور'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: passwordCtrl,
+              decoration: const InputDecoration(labelText: 'كلمة المرور الجديدة'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور'),
+              obscureText: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+          Obx(() => ElevatedButton(
+                onPressed: ctrl.isSubmitting.value
+                    ? null
+                    : () async {
+                        if (passwordCtrl.text.length < 6) {
+                          Get.snackbar('خطأ', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+                          return;
+                        }
+                        if (passwordCtrl.text != confirmCtrl.text) {
+                          Get.snackbar('خطأ', 'كلمتا المرور غير متطابقتين');
+                          return;
+                        }
+                        final success = await ctrl.changePassword(
+                          clientId,
+                          passwordCtrl.text,
+                          confirmCtrl.text,
+                        );
+                        if (success) Get.back();
+                      },
+                child: ctrl.isSubmitting.value
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('تغيير'),
+              )),
+        ],
       ),
     );
   }

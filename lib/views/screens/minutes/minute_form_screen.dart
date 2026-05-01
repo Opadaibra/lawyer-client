@@ -71,13 +71,9 @@ class _MinuteFormScreenState extends State<MinuteFormScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCaseId == null) {
-      Get.snackbar('خطأ', 'الرجاء اختيار قضية');
-      return;
-    }
     final minute = MinuteModel(
       id: _editMinute?.id ?? 0,
-      caseFileId: _selectedCaseId!,
+      caseFileId: _selectedCaseId,
       title: _titleCtrl.text.trim(),
       content: _contentCtrl.text.trim().isNotEmpty ? _contentCtrl.text.trim() : null,
       date: _dateCtrl.text.trim(),
@@ -154,24 +150,26 @@ class _MinuteFormScreenState extends State<MinuteFormScreen> {
                   ),
                 );
               }),
-              // Case dropdown  (required)
+              // Case dropdown  (optional)
               Obx(() {
                 final cases = caseCtrl.cases;
                 return DropdownButtonFormField<int>(
                   value: _selectedCaseId,
                   decoration: InputDecoration(
-                    labelText: 'case'.tr + ' *',
+                    labelText: 'case'.tr + ' (اختياري)',
                     prefixIcon: const Icon(Icons.folder_outlined),
                   ),
-                  items: cases
-                      .map((c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Text(c.caseNumber),
-                          ))
-                      .toList(),
+                  items: [
+                    const DropdownMenuItem<int>(
+                      value: null,
+                      child: Text('بدون قضية'),
+                    ),
+                    ...cases.map((c) => DropdownMenuItem(
+                          value: c.id,
+                          child: Text(c.caseNumber),
+                        )),
+                  ],
                   onChanged: (v) => setState(() => _selectedCaseId = v),
-                  validator: (v) =>
-                      v == null ? 'please_select_case'.tr : null,
                 );
               }),
               const SizedBox(height: 16),

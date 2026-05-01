@@ -87,7 +87,7 @@ class ClientController extends GetxController {
   Future<bool> updateClient(int id, ClientModel client) async {
     isSubmitting.value = true;
     try {
-      await _api.patch('${AppConstants.clients}/$id', client.toCreateJson());
+      await _api.patch('${AppConstants.clients}/$id', data: client.toCreateJson());
       await fetchClients();
       Get.back();
       _showSuccess('Client updated successfully / تم تحديث الموكل');
@@ -150,6 +150,25 @@ class ClientController extends GetxController {
     } catch (e) {
       _showError(e);
       return false;
+    }
+  }
+
+  // ─── Change Password ──────────────────────────────────────────────────────
+  Future<bool> changePassword(int clientId, String password, String confirmation) async {
+    isSubmitting.value = true;
+    try {
+      final response = await _api.put('/clients/$clientId/change-password', data: {
+        'password': password,
+        'password_confirmation': confirmation,
+      });
+      Get.back();
+      _showSuccess('تم إعادة تعيين كلمة المرور بنجاح');
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    } finally {
+      isSubmitting.value = false;
     }
   }
 

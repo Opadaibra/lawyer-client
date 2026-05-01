@@ -137,7 +137,7 @@ class TaskController extends GetxController {
   Future<bool> updateTask(int id, TaskModel task) async {
     isSubmitting.value = true;
     try {
-      await _api.patch('${AppConstants.tasks}/$id', task.toCreateJson());
+      await _api.patch('${AppConstants.tasks}/$id', data: task.toCreateJson());
       await fetchTasks();
       Get.back();
       _showSuccess('task_updated'.tr);
@@ -154,7 +154,7 @@ class TaskController extends GetxController {
     try {
       final task = tasks.firstWhereOrNull((t) => t.id == id);
       if (task == null) return false;
-      await _api.patch('${AppConstants.tasks}/$id', {
+      await _api.patch('${AppConstants.tasks}/$id', data: {
         'case_file_id': task.caseFileId,
         'title': task.title,
         'status': 'completed',

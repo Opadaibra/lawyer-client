@@ -292,7 +292,7 @@ class NotificationService {
     final base = _isClientUser()
         ? AppConstants.clientPortalNotifications
         : AppConstants.notifications;
-    await api.patch('$base/$id/read', {});
+    await api.patch('$base/$id/read', data: {});
   }
 
   /// إشعار بمهمة جديدة للمستخدم المستهدف (عادة حساب الموكل) مع `task_id`.

@@ -1,6 +1,6 @@
 {
-    "name": "lawyer_client",
-    "short_name": "lawyer_client",
+    "name": "مكتب المحامي",
+    "short_name": "مكتب المحامي",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

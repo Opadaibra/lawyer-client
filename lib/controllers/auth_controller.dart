@@ -23,6 +23,11 @@ class AuthController extends GetxController {
     final userData = StorageService.getUser();
     if (userData != null) {
       currentUser.value = UserModel.fromJson(userData);
+      
+      // Also prefetch data when app starts with a logged-in user
+      if (StorageService.getToken() != null && StorageService.getToken() != 'offline') {
+          _prefetchOfflineData();
+      }
     }
   }
 
@@ -76,6 +81,76 @@ class AuthController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  // ─── Silent Login for Sync ────────────────────────────────────────────────
+  Future<bool> silentLogin(String email, String password) async {
+    isLoading.value = true;
+    try {
+      final response = await _api.post(
+        '/login',
+        data: {'email': email.trim(), 'password': password},
+        isSyncCall: true, // Bypass offline queue block
+      );
+
+      final token = response['authorization']?['token'] as String? ??
+          response['access_token'] as String?;
+      final refreshToken = response['authorization']?['refresh_token'] as String? ??
+          response['refresh_token'] as String?;
+
+      if (token == null) {
+        throw Exception(response['message'] ?? 'Login failed');
+      }
+
+      await StorageService.setToken(token);
+      if (refreshToken != null) {
+        await StorageService.setRefreshToken(refreshToken);
+      }
+      
+      // Since they are now successfully authenticated with server, remove offline constraints
+      await StorageService.setOfflineMode(false);
+
+      final userData = response['user'] as Map<String, dynamic>? ??
+          response['data']?['user'] as Map<String, dynamic>?;
+
+      if (userData != null) {
+        currentUser.value = UserModel.fromJson(userData);
+        await StorageService.setUser(userData);
+      }
+
+      // Start background prefetch for offline availability
+      _prefetchOfflineData();
+
+      return true;
+    } catch (e) {
+      Get.snackbar(
+        'فشل التحقق / Login Failed',
+        e.toString().replaceFirst('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _prefetchOfflineData() async {
+    try {
+       print("Starting background prefetch for offline mode...");
+       // Fire all fetches concurrently. They will be automatically cached by ApiService.
+       await Future.wait([
+          _api.getList(AppConstants.cases).catchError((_) => []),
+          _api.getList(AppConstants.tasks).catchError((_) => []),
+          _api.getList(AppConstants.minutes).catchError((_) => []),
+          _api.getList(AppConstants.clients).catchError((_) => []),
+          _api.getList(AppConstants.files).catchError((_) => []),
+          _api.get(AppConstants.offices).catchError((_) => {}),
+          _api.getList(AppConstants.team).catchError((_) => []),
+       ]);
+       print("Background prefetch completed successfully.");
+    } catch (e) {
+       print("Background prefetch error: $e");
     }
   }
 
@@ -137,9 +212,22 @@ class AuthController extends GetxController {
     }
   }
 
+  // ─── Offline Mode ─────────────────────────────────────────────────────────
+  Future<void> enterOfflineMode() async {
+    await StorageService.setOfflineMode(true);
+    await StorageService.setToken('offline'); 
+    Get.snackbar(
+      'وضع عدم الاتصال',
+      'تعمل الآن محلياً، لن تزامن البيانات حتى تضغط على زر المزامنة وتملك اتصالاً',
+      snackPosition: SnackPosition.BOTTOM,
+    );
+    Get.offAllNamed(AppRoutes.dashboard);
+  }
+
   // ─── Logout ───────────────────────────────────────────────────────────────
   Future<void> logout() async {
     await StorageService.clearAll();
+    await StorageService.setOfflineMode(false);
     currentUser.value = null;
     if (Get.isRegistered<NotificationController>()) {
       Get.find<NotificationController>().resetForLogout();

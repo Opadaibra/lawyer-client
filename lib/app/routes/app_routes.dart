@@ -39,4 +39,5 @@ class AppRoutes {
   static const String officeInfo = '/office-info';
   static const String clientPortal = '/client-portal';
   static const String clientPortalCaseDetail = '/client-portal/case-detail';
+  static const String syncData = '/sync';
 }

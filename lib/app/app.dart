@@ -33,8 +33,9 @@ class _LawyerAppState extends State<LawyerApp> {
     await NotificationService.initialize();
     final userData = StorageService.getUser();
     final role = userData?['role']?.toString().toUpperCase();
+    final isOffline = StorageService.isOfflineMode();
     setState(() {
-      _isLoggedIn = StorageService.isLoggedIn();
+      _isLoggedIn = StorageService.isLoggedIn() || isOffline;
       _isClient = role == 'CLIENT';
       _initialized = true;
     });

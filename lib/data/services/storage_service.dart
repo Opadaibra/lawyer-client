@@ -43,8 +43,7 @@ class StorageService {
       prefs.setString(AppConstants.themeKey, mode);
 
   // Locale
-  static String getLocale() =>
-      prefs.getString(AppConstants.localeKey) ?? 'en';
+  static String getLocale() => prefs.getString(AppConstants.localeKey) ?? 'en';
   static Future<bool> setLocale(String locale) =>
       prefs.setString(AppConstants.localeKey, locale);
 
@@ -56,4 +55,9 @@ class StorageService {
     final token = getToken();
     return token != null && token.isNotEmpty;
   }
+
+  // Offline Mode
+  static bool isOfflineMode() => prefs.getBool('is_offline_mode') ?? false;
+  static Future<bool> setOfflineMode(bool value) =>
+      prefs.setBool('is_offline_mode', value);
 }

@@ -166,7 +166,7 @@ class MinuteController extends GetxController {
   Future<bool> updateMinute(int id, MinuteModel minute) async {
     isSubmitting.value = true;
     try {
-      await _api.patch('${AppConstants.minutes}/$id', minute.toCreateJson());
+      await _api.patch('${AppConstants.minutes}/$id', data: minute.toCreateJson());
       await _reloadMinutesList();
       Get.back();
       _showSuccess('تم تحديث الضبط');

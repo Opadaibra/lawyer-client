@@ -129,7 +129,7 @@ class ProfileScreen extends StatelessWidget {
   void _confirmLogout(AuthController auth) {
     Get.dialog(AlertDialog(
       title: Text('logout'.tr),
-      content: Text('are_you_sure'.tr),
+      content: Text('سيتم تسجيل الخروج. انتبه: أي بيانات لم يتم مزامنتها مسبقاً قد يتم فقدانها.'),
       actions: [
         TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
         ElevatedButton(

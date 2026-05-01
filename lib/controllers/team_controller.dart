@@ -1,11 +1,12 @@
 import 'package:get/get.dart';
+import 'package:lawyer_client/data/services/storage_service.dart';
 import '../data/services/api_service.dart';
 import '../core/constants/app_constants.dart';
 import 'auth_controller.dart';
 
 class TeamController extends GetxController {
   final ApiService _api = ApiService();
-  
+
   final members = <Map<String, dynamic>>[].obs;
   final isLoading = false.obs;
   final isSubmitting = false.obs;
@@ -26,8 +27,8 @@ class TeamController extends GetxController {
       } else if (response is List) {
         list = List<Map<String, dynamic>>.from(response);
       }
-      // إظهار الجميع بما فيهم الـ CLIENT حسب الطلب الجديد
-      members.value = list;
+      // إخفاء الـ CLIENT من قائمة الفريق
+      members.value = list.where((m) => m['role']?.toString().toUpperCase() != 'CLIENT').toList();
     } catch (e) {
       _showError(e);
     } finally {
@@ -35,9 +36,14 @@ class TeamController extends GetxController {
     }
   }
 
-  Future<bool> addMember(String email, String role) async {
+  Future<bool> addMember({
+    required String name,
+    required String email,
+    required String password,
+    required String role,
+  }) async {
     final u = Get.find<AuthController>().currentUser.value;
-    if (u?.canMutateOfficeContent != true) {
+    if (!StorageService.isOfflineMode() && u?.canMutateOfficeContent != true) {
       Get.snackbar('error'.tr, 'viewer_no_edit_permission'.tr,
           snackPosition: SnackPosition.BOTTOM);
       return false;
@@ -45,7 +51,9 @@ class TeamController extends GetxController {
     isSubmitting.value = true;
     try {
       await _api.post(AppConstants.team, data: {
+        'name': name,
         'email': email,
+        'password': password,
         'role': role,
       });
       await fetchMembers();
@@ -59,7 +67,64 @@ class TeamController extends GetxController {
     }
   }
 
+  Future<bool> updateMember({
+    required int id,
+    String? name,
+    String? email,
+    String? role,
+  }) async {
+    if (StorageService.isOfflineMode()) {
+      Get.snackbar(
+          'error'.tr, 'لا يمكن تعديل معلومات الفريق في وضع عدم الاتصال',
+          snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+    isSubmitting.value = true;
+    try {
+      final data = <String, dynamic>{};
+      if (name != null) data['name'] = name;
+      if (email != null) data['email'] = email;
+      if (role != null) data['role'] = role;
+      await _api.put('${AppConstants.team}/$id', data: data);
+      await fetchMembers();
+      _showSuccess('تم التعديل بنجاح');
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    } finally {
+      isSubmitting.value = false;
+    }
+  }
+
+  Future<bool> changeMemberPassword(int id, String newPassword) async {
+    if (StorageService.isOfflineMode()) {
+      Get.snackbar('error'.tr, 'لا يمكن تغيير كلمة المرور في وضع عدم الاتصال',
+          snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+    isSubmitting.value = true;
+    try {
+      await _api.put('${AppConstants.team}/$id/change-password', data: {
+        'password': newPassword,
+        'password_confirmation': newPassword,
+      });
+      _showSuccess('تم تغيير كلمة المرور بنجاح');
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    } finally {
+      isSubmitting.value = false;
+    }
+  }
+
   Future<bool> removeMember(int id) async {
+    if (StorageService.isOfflineMode()) {
+      Get.snackbar('error'.tr, 'لا يمكن حذف عضو من الفريق في وضع عدم الاتصال',
+          snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
     try {
       await _api.delete('${AppConstants.team}/$id');
       await fetchMembers();

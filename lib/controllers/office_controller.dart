@@ -53,11 +53,16 @@ class OfficeController extends GetxController {
   Future<void> fetchOffice() async {
     isLoading.value = true;
     try {
-      final response = await _api.get(AppConstants.offices);
+      final response = await _api.getList(AppConstants.offices);
       // السيرفر قد يعيد كائن مباشرة أو مصفوفة
-      final data = response['data'] ?? response;
-      if (data != null) {
-        office.value = OfficeModel.fromJson(data);
+      dynamic payload = response is Map ? (response['data'] ?? response) : response;
+      if (payload is Iterable && payload.isNotEmpty) {
+          payload = payload.first;
+      }
+      print('Fetch office extracted: $payload');
+
+      if (payload != null && payload is Map) {
+        office.value = OfficeModel.fromJson(Map<String, dynamic>.from(payload));
       }
     } catch (e) {
       print('Fetch office error: $e');
@@ -75,15 +80,40 @@ class OfficeController extends GetxController {
   }) async {
     isUpdating.value = true;
     try {
-      final response = await _api.patch(AppConstants.offices, {
+      final currentOfficeId = office.value?.id;
+      if (currentOfficeId == null) {
+          Get.snackbar('error'.tr, 'يرجى انتظار جلب بيانات المكتب أولاً');
+          return false;
+      }
+
+      final response = await _api.patch('${AppConstants.offices}/$currentOfficeId', data: {
         'name': name,
         if (phone != null) 'phone': phone,
         if (email != null) 'email': email,
         if (address != null) 'address': address,
         if (description != null) 'description': description,
       });
-      final data = response['data'] ?? response;
-      office.value = OfficeModel.fromJson(data);
+
+      dynamic payload = response is Map ? (response['data'] ?? response) : response;
+      if (payload is Iterable && payload.isNotEmpty) {
+          payload = payload.first;
+      }
+
+      // In offline mode, the API returns a simple success message, so we merge the updated data manually
+      if (payload != null && payload is Map) {
+        if (payload.containsKey('message') && payload['status'] == 'success' && !payload.containsKey('id')) {
+           // Offline mock response
+           final updatedOffice = OfficeModel(
+             id: currentOfficeId,
+             name: name,
+             phone: phone ?? office.value?.phone,
+             address: address ?? office.value?.address,
+           );
+           office.value = updatedOffice;
+        } else {
+           office.value = OfficeModel.fromJson(Map<String, dynamic>.from(payload));
+        }
+      }
       Get.snackbar('success'.tr, 'تم تحديث البيانات بنجاح');
       return true;
     } catch (e) {
