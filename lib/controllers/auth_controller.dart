@@ -141,6 +141,7 @@ class AuthController extends GetxController {
        // Fire all fetches concurrently. They will be automatically cached by ApiService.
        await Future.wait([
           _api.getList(AppConstants.cases).catchError((_) => []),
+          _api.getList('${AppConstants.cases}/all-sessions').catchError((_) => []),
           _api.getList(AppConstants.tasks).catchError((_) => []),
           _api.getList(AppConstants.minutes).catchError((_) => []),
           _api.getList(AppConstants.clients).catchError((_) => []),

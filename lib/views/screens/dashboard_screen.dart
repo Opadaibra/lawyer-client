@@ -29,6 +29,13 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware, Widg
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        if (Get.isRegistered<DashboardController>()) {
+          Get.find<DashboardController>().refreshDashboard();
+        }
+      } catch (_) {}
+    });
   }
 
   @override

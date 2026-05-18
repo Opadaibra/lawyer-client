@@ -159,14 +159,15 @@ class CaseController extends GetxController {
       final response =
           await _api.getList('${AppConstants.cases}/$caseId/sessions');
       final list = _parseList(response);
-      if (list.isNotEmpty) {
-        final listModels = list.map((e) => SessionModel.fromJson(e)).toList();
-        if (selectedCase.value?.id == caseId) {
-          selectedCase.value =
-              selectedCase.value!.copyWith(sessions: listModels);
-        }
-        NotificationService.checkSessionReminders(listModels);
+      final listModels = list
+          .map((e) => SessionModel.fromJson(e))
+          .where((s) => !s.isArchived)
+          .toList();
+      if (selectedCase.value?.id == caseId) {
+        selectedCase.value =
+            selectedCase.value!.copyWith(sessions: listModels);
       }
+      NotificationService.checkSessionReminders(listModels);
     } catch (e) {
       _showError(e);
     }
@@ -174,6 +175,8 @@ class CaseController extends GetxController {
 
   Future<bool> addSession(int caseId, Map<String, dynamic> data) async {
     try {
+      data['case_id'] = caseId;
+      data['case_file_id'] = caseId;
       await _api.post('${AppConstants.cases}/$caseId/sessions', data: data);
       await fetchSessions(caseId);
       if (Get.isRegistered<DashboardController>()) {

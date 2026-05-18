@@ -255,8 +255,22 @@ class ApiService {
     required String decisions,
     required Map<String, dynamic> newMock,
   }) {
-    final allCache = OfflineSyncService.getCachedResponse('/cases/all-sessions');
-    if (allCache == null) return;
+    var archivedCache = OfflineSyncService.getCachedResponse('/cases/all-sessions?archived=true');
+    List<dynamic>? archivedList;
+    dynamic archivedRoot;
+    if (archivedCache is List) { archivedList = archivedCache; archivedRoot = archivedCache; }
+    else if (archivedCache is Map && archivedCache['data'] is List) {
+      archivedList = archivedCache['data'] as List;
+      archivedRoot = archivedCache;
+    } else {
+      archivedRoot = {"status": "success", "data": []};
+      archivedList = archivedRoot['data'] as List;
+    }
+
+    var allCache = OfflineSyncService.getCachedResponse('/cases/all-sessions');
+    if (allCache == null) {
+      allCache = {"status": "success", "data": []};
+    }
     List<dynamic>? list;
     dynamic root;
     if (allCache is List) {
@@ -269,13 +283,23 @@ class ApiService {
     if (list == null) return;
     final idx = list.indexWhere((e) => e is Map && e['id'] == sessionId);
     if (idx != -1) {
-      (list[idx] as Map)['archived_at'] = DateTime.now().toIso8601String();
+      final oldSess = Map<String, dynamic>.from(list[idx] as Map);
+      oldSess['archived_at'] = DateTime.now().toIso8601String();
+      if (decisions.isNotEmpty) {
+        oldSess['decisions'] = decisions;
+      }
+      (list[idx] as Map)['archived_at'] = oldSess['archived_at'];
       if (decisions.isNotEmpty) {
         (list[idx] as Map)['decisions'] = decisions;
+      }
+
+      if (archivedList != null && archivedList.indexWhere((x) => x['id'] == sessionId) == -1) {
+        archivedList.add(oldSess);
       }
     }
     list.add(newMock);
     OfflineSyncService.cacheResponse('/cases/all-sessions', root);
+    OfflineSyncService.cacheResponse('/cases/all-sessions?archived=true', archivedRoot);
   }
 
   Future<Map<String, dynamic>> post(
@@ -290,6 +314,7 @@ class ApiService {
       final mockItem = {'id': tempId, ...?data};
 
       await OfflineSyncService.appendToCacheList(endpoint, mockItem);
+      ApiService._handleOfflineArchiveOrUnarchive(endpoint);
 
       if (data != null) {
         if (endpoint.contains(AppConstants.minutes)) {
@@ -321,24 +346,45 @@ class ApiService {
              }
              await OfflineSyncService.appendToCacheList('/cases/$caseId/sessions', mockItem);
 
-             final allCache = OfflineSyncService.getCachedResponse('/cases/all-sessions');
-             if (allCache != null) {
-               List<dynamic>? allList;
-               dynamic allRoot;
-               if (allCache is List) { allList = allCache; allRoot = allCache; }
-               else if (allCache is Map && allCache['data'] is List) {
-                 allList = allCache['data'] as List;
-                 allRoot = allCache;
-               }
-               if (allList != null) {
-                 for (var e in allList) {
-                   if (e is Map && e['case_file_id'] == caseId && e['archived_at'] == null) {
-                     e['archived_at'] = DateTime.now().toIso8601String();
+             var archivedCache = OfflineSyncService.getCachedResponse('/cases/all-sessions?archived=true');
+             List<dynamic>? archivedList;
+             dynamic archivedRoot;
+             if (archivedCache is List) { archivedList = archivedCache; archivedRoot = archivedCache; }
+             else if (archivedCache is Map && archivedCache['data'] is List) {
+               archivedList = archivedCache['data'] as List;
+               archivedRoot = archivedCache;
+             } else {
+               archivedRoot = {"status": "success", "data": []};
+               archivedList = archivedRoot['data'] as List;
+             }
+
+             var allCache = OfflineSyncService.getCachedResponse('/cases/all-sessions');
+             if (allCache == null) {
+               allCache = {"status": "success", "data": []};
+             }
+             List<dynamic>? allList;
+             dynamic allRoot;
+             if (allCache is List) { allList = allCache; allRoot = allCache; }
+             else if (allCache is Map && allCache['data'] is List) {
+               allList = allCache['data'] as List;
+               allRoot = allCache;
+             }
+             
+             if (allList != null) {
+               for (var e in allList) {
+                 if (e is Map && (e['case_file_id'] == caseId || e['case_id'] == caseId) && e['archived_at'] == null) {
+                   final archivedItem = Map<String, dynamic>.from(e);
+                   archivedItem['archived_at'] = DateTime.now().toIso8601String();
+                   e['archived_at'] = archivedItem['archived_at'];
+                   
+                   if (archivedList != null && archivedList.indexWhere((x) => x['id'] == e['id']) == -1) {
+                     archivedList.add(archivedItem);
                    }
                  }
-                 allList.add(mockItem);
-                 OfflineSyncService.cacheResponse('/cases/all-sessions', allRoot);
                }
+               allList.add(mockItem);
+               OfflineSyncService.cacheResponse('/cases/all-sessions', allRoot);
+               OfflineSyncService.cacheResponse('/cases/all-sessions?archived=true', archivedRoot);
              }
           }
         }
@@ -409,6 +455,7 @@ class ApiService {
         final mockItem = {'id': tempId, ...?data};
 
         await OfflineSyncService.appendToCacheList(endpoint, mockItem);
+        ApiService._handleOfflineArchiveOrUnarchive(endpoint);
 
         // Update related lists
         if (data != null) {
@@ -440,6 +487,47 @@ class ApiService {
                    OfflineSyncService.cacheResponse('/cases/$caseId/sessions', listCache);
                }
                await OfflineSyncService.appendToCacheList('/cases/$caseId/sessions', mockItem);
+
+               var archivedCache = OfflineSyncService.getCachedResponse('/cases/all-sessions?archived=true');
+               List<dynamic>? archivedList;
+               dynamic archivedRoot;
+               if (archivedCache is List) { archivedList = archivedCache; archivedRoot = archivedCache; }
+               else if (archivedCache is Map && archivedCache['data'] is List) {
+                 archivedList = archivedCache['data'] as List;
+                 archivedRoot = archivedCache;
+               } else {
+                 archivedRoot = {"status": "success", "data": []};
+                 archivedList = archivedRoot['data'] as List;
+               }
+
+               var allCache = OfflineSyncService.getCachedResponse('/cases/all-sessions');
+               if (allCache == null) {
+                 allCache = {"status": "success", "data": []};
+               }
+               List<dynamic>? allList;
+               dynamic allRoot;
+               if (allCache is List) { allList = allCache; allRoot = allCache; }
+               else if (allCache is Map && allCache['data'] is List) {
+                 allList = allCache['data'] as List;
+                 allRoot = allCache;
+               }
+               
+               if (allList != null) {
+                 for (var e in allList) {
+                   if (e is Map && (e['case_file_id'] == caseId || e['case_id'] == caseId) && e['archived_at'] == null) {
+                     final archivedItem = Map<String, dynamic>.from(e);
+                     archivedItem['archived_at'] = DateTime.now().toIso8601String();
+                     e['archived_at'] = archivedItem['archived_at'];
+                     
+                     if (archivedList != null && archivedList.indexWhere((x) => x['id'] == e['id']) == -1) {
+                       archivedList.add(archivedItem);
+                     }
+                   }
+                 }
+                 allList.add(mockItem);
+                 OfflineSyncService.cacheResponse('/cases/all-sessions', allRoot);
+                 OfflineSyncService.cacheResponse('/cases/all-sessions?archived=true', archivedRoot);
+               }
             }
           }
           if (endpoint.contains('/postpone')) {
@@ -707,6 +795,308 @@ class ApiService {
         };
       }
       rethrow;
+    }
+  }
+
+  static void _handleOfflineArchiveOrUnarchive(String endpoint) {
+    final cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+    final parts = cleanEndpoint.split('/');
+    if (parts.length >= 3) {
+      final type = parts[0];
+      final idStr = parts[1];
+      final action = parts[2];
+      final id = int.tryParse(idStr);
+      if (id != null && (action == 'archive' || action == 'unarchive')) {
+        final isArchive = action == 'archive';
+        if (type == 'cases') {
+          _updateCaseArchiveCache(id, isArchive: isArchive);
+        } else if (type == 'sessions') {
+          _updateSessionArchiveCache(id, isArchive: isArchive);
+        } else if (type == 'tasks') {
+          _updateTaskArchiveCache(id, isArchive: isArchive);
+        } else if (type == 'minutes') {
+          _updateMinuteArchiveCache(id, isArchive: isArchive);
+        }
+      }
+    }
+  }
+
+  static void _updateCaseArchiveCache(int id, {required bool isArchive}) {
+    final activeCache = OfflineSyncService.getCachedResponse('/cases/');
+    List<dynamic>? activeList;
+    dynamic activeRoot;
+    if (activeCache is List) { activeList = activeCache; activeRoot = activeCache; }
+    else if (activeCache is Map && activeCache['data'] is List) {
+      activeList = activeCache['data'] as List;
+      activeRoot = activeCache;
+    }
+    
+    Map<String, dynamic>? targetCase;
+    if (activeList != null) {
+      final idx = activeList.indexWhere((e) => e is Map && e['id'] == id);
+      if (idx != -1) {
+        targetCase = Map<String, dynamic>.from(activeList[idx] as Map);
+        if (isArchive) {
+          targetCase['archived_at'] = DateTime.now().toIso8601String();
+          activeList.removeAt(idx);
+        } else {
+          targetCase['archived_at'] = null;
+        }
+        OfflineSyncService.cacheResponse('/cases/', activeRoot);
+      }
+    }
+
+    final archivedCache = OfflineSyncService.getCachedResponse('/cases/?archived=true');
+    List<dynamic>? archivedList;
+    dynamic archivedRoot;
+    if (archivedCache is List) { archivedList = archivedCache; archivedRoot = archivedCache; }
+    else if (archivedCache is Map && archivedCache['data'] is List) {
+      archivedList = archivedCache['data'] as List;
+      archivedRoot = archivedCache;
+    } else {
+      archivedRoot = {"status": "success", "data": []};
+      archivedList = archivedRoot['data'] as List;
+    }
+
+    if (archivedList != null) {
+      final idx = archivedList.indexWhere((e) => e is Map && e['id'] == id);
+      if (isArchive) {
+        if (idx == -1 && targetCase != null) {
+          archivedList.add(targetCase);
+        }
+      } else {
+        if (idx != -1) {
+          final caseObj = archivedList.removeAt(idx);
+          if (caseObj is Map) {
+            final parsedCase = Map<String, dynamic>.from(caseObj);
+            parsedCase['archived_at'] = null;
+            if (activeList != null && activeList.indexWhere((e) => e['id'] == id) == -1) {
+              activeList.add(parsedCase);
+              OfflineSyncService.cacheResponse('/cases/', activeRoot);
+            }
+          }
+        }
+      }
+      OfflineSyncService.cacheResponse('/cases/?archived=true', archivedRoot);
+    }
+  }
+
+  static void _updateSessionArchiveCache(int id, {required bool isArchive}) {
+    final allCache = OfflineSyncService.getCachedResponse('/cases/all-sessions');
+    List<dynamic>? allList;
+    dynamic allRoot;
+    if (allCache is List) { allList = allCache; allRoot = allCache; }
+    else if (allCache is Map && allCache['data'] is List) {
+      allList = allCache['data'] as List;
+      allRoot = allCache;
+    }
+
+    Map<String, dynamic>? targetSession;
+    int? caseId;
+    if (allList != null) {
+      final idx = allList.indexWhere((e) => e is Map && e['id'] == id);
+      if (idx != -1) {
+        targetSession = Map<String, dynamic>.from(allList[idx] as Map);
+        caseId = targetSession['case_file_id'] ?? targetSession['case_id'];
+        if (isArchive) {
+          targetSession['archived_at'] = DateTime.now().toIso8601String();
+          allList.removeAt(idx);
+        } else {
+          targetSession['archived_at'] = null;
+        }
+        OfflineSyncService.cacheResponse('/cases/all-sessions', allRoot);
+      }
+    }
+
+    final archivedCache = OfflineSyncService.getCachedResponse('/cases/all-sessions?archived=true');
+    List<dynamic>? archivedList;
+    dynamic archivedRoot;
+    if (archivedCache is List) { archivedList = archivedCache; archivedRoot = archivedCache; }
+    else if (archivedCache is Map && archivedCache['data'] is List) {
+      archivedList = archivedCache['data'] as List;
+      archivedRoot = archivedCache;
+    } else {
+      archivedRoot = {"status": "success", "data": []};
+      archivedList = archivedRoot['data'] as List;
+    }
+
+    if (archivedList != null) {
+      final idx = archivedList.indexWhere((e) => e is Map && e['id'] == id);
+      if (isArchive) {
+        if (idx == -1 && targetSession != null) {
+          archivedList.add(targetSession);
+        }
+      } else {
+        if (idx != -1) {
+          final sessObj = archivedList.removeAt(idx);
+          if (sessObj is Map) {
+            final parsedSess = Map<String, dynamic>.from(sessObj);
+            parsedSess['archived_at'] = null;
+            if (allList != null && allList.indexWhere((e) => e['id'] == id) == -1) {
+              allList.add(parsedSess);
+              OfflineSyncService.cacheResponse('/cases/all-sessions', allRoot);
+            }
+          }
+        }
+      }
+      OfflineSyncService.cacheResponse('/cases/all-sessions?archived=true', archivedRoot);
+    }
+
+    if (caseId != null) {
+      final caseSessCache = OfflineSyncService.getCachedResponse('/cases/$caseId/sessions');
+      List<dynamic>? caseSessList;
+      dynamic caseSessRoot;
+      if (caseSessCache is List) { caseSessList = caseSessCache; caseSessRoot = caseSessCache; }
+      else if (caseSessCache is Map && caseSessCache['data'] is List) {
+        caseSessList = caseSessCache['data'] as List;
+        caseSessRoot = caseSessCache;
+      }
+      if (caseSessList != null) {
+        final idx = caseSessList.indexWhere((e) => e is Map && e['id'] == id);
+        if (idx != -1) {
+          if (isArchive) {
+            caseSessList.removeAt(idx);
+          } else {
+            if (targetSession != null) {
+              final parsed = Map<String, dynamic>.from(targetSession);
+              parsed['archived_at'] = null;
+              caseSessList.add(parsed);
+            }
+          }
+          OfflineSyncService.cacheResponse('/cases/$caseId/sessions', caseSessRoot);
+        }
+      }
+    }
+  }
+
+  static void _updateTaskArchiveCache(int id, {required bool isArchive}) {
+    final activeCache = OfflineSyncService.getCachedResponse('/tasks/');
+    List<dynamic>? activeList;
+    dynamic activeRoot;
+    if (activeCache is List) { activeList = activeCache; activeRoot = activeCache; }
+    else if (activeCache is Map && activeCache['data'] is List) {
+      activeList = activeCache['data'] as List;
+      activeRoot = activeCache;
+    }
+
+    Map<String, dynamic>? targetTask;
+    int? caseId;
+    if (activeList != null) {
+      final idx = activeList.indexWhere((e) => e is Map && e['id'] == id);
+      if (idx != -1) {
+        targetTask = Map<String, dynamic>.from(activeList[idx] as Map);
+        caseId = targetTask['case_file_id'] ?? targetTask['case_id'];
+        if (isArchive) {
+          targetTask['archived_at'] = DateTime.now().toIso8601String();
+          activeList.removeAt(idx);
+        } else {
+          targetTask['archived_at'] = null;
+        }
+        OfflineSyncService.cacheResponse('/tasks/', activeRoot);
+      }
+    }
+
+    final archivedCache = OfflineSyncService.getCachedResponse('/tasks/?archived=true');
+    List<dynamic>? archivedList;
+    dynamic archivedRoot;
+    if (archivedCache is List) { archivedList = archivedCache; archivedRoot = archivedCache; }
+    else if (archivedCache is Map && archivedCache['data'] is List) {
+      archivedList = archivedCache['data'] as List;
+      archivedRoot = archivedCache;
+    } else {
+      archivedRoot = {"status": "success", "data": []};
+      archivedList = archivedRoot['data'] as List;
+    }
+
+    if (archivedList != null) {
+      final idx = archivedList.indexWhere((e) => e is Map && e['id'] == id);
+      if (isArchive) {
+        if (idx == -1 && targetTask != null) {
+          archivedList.add(targetTask);
+        }
+      } else {
+        if (idx != -1) {
+          final taskObj = archivedList.removeAt(idx);
+          if (taskObj is Map) {
+            final parsedTask = Map<String, dynamic>.from(taskObj);
+            parsedTask['archived_at'] = null;
+            if (activeList != null && activeList.indexWhere((e) => e['id'] == id) == -1) {
+              activeList.add(parsedTask);
+              OfflineSyncService.cacheResponse('/tasks/', activeRoot);
+            }
+          }
+        }
+      }
+      OfflineSyncService.cacheResponse('/tasks/?archived=true', archivedRoot);
+    }
+
+    if (caseId != null) {
+      final caseTaskCache = OfflineSyncService.getCachedResponse('/tasks/by-case/$caseId');
+      List<dynamic>? caseTaskList;
+      dynamic caseTaskRoot;
+      if (caseTaskCache is List) { caseTaskList = caseTaskCache; caseTaskRoot = caseTaskCache; }
+      else if (caseTaskCache is Map && caseTaskCache['data'] is List) {
+        caseTaskList = caseTaskCache['data'] as List;
+        caseTaskRoot = caseTaskCache;
+      }
+      if (caseTaskList != null) {
+        final idx = caseTaskList.indexWhere((e) => e is Map && e['id'] == id);
+        if (idx != -1) {
+          if (isArchive) {
+            caseTaskList.removeAt(idx);
+          } else {
+            if (targetTask != null) {
+              final parsed = Map<String, dynamic>.from(targetTask);
+              parsed['archived_at'] = null;
+              caseTaskList.add(parsed);
+            }
+          }
+          OfflineSyncService.cacheResponse('/tasks/by-case/$caseId', caseTaskRoot);
+        }
+      }
+    }
+  }
+
+  static void _updateMinuteArchiveCache(int id, {required bool isArchive}) {
+    final activeCache = OfflineSyncService.getCachedResponse('/minutes/');
+    List<dynamic>? activeList;
+    dynamic activeRoot;
+    if (activeCache is List) { activeList = activeCache; activeRoot = activeCache; }
+    else if (activeCache is Map && activeCache['data'] is List) {
+      activeList = activeCache['data'] as List;
+      activeRoot = activeCache;
+    }
+
+    int? caseId;
+    if (activeList != null) {
+      final idx = activeList.indexWhere((e) => e is Map && e['id'] == id);
+      if (idx != -1) {
+        final minute = Map<String, dynamic>.from(activeList[idx] as Map);
+        caseId = minute['case_file_id'] ?? minute['case_id'];
+        minute['archived_at'] = isArchive ? DateTime.now().toIso8601String() : null;
+        activeList[idx] = minute;
+        OfflineSyncService.cacheResponse('/minutes/', activeRoot);
+      }
+    }
+
+    if (caseId != null) {
+      final caseMinCache = OfflineSyncService.getCachedResponse('/cases/$caseId/minutes');
+      List<dynamic>? caseMinList;
+      dynamic caseMinRoot;
+      if (caseMinCache is List) { caseMinList = caseMinCache; caseMinRoot = caseMinCache; }
+      else if (caseMinCache is Map && caseMinCache['data'] is List) {
+        caseMinList = caseMinCache['data'] as List;
+        caseMinRoot = caseMinCache;
+      }
+      if (caseMinList != null) {
+        final idx = caseMinList.indexWhere((e) => e is Map && e['id'] == id);
+        if (idx != -1) {
+          final minuteObj = Map<String, dynamic>.from(caseMinList[idx] as Map);
+          minuteObj['archived_at'] = isArchive ? DateTime.now().toIso8601String() : null;
+          caseMinList[idx] = minuteObj;
+          OfflineSyncService.cacheResponse('/cases/$caseId/minutes', caseMinRoot);
+        }
+      }
     }
   }
 }

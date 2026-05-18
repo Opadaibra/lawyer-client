@@ -68,6 +68,7 @@ class DashboardController extends GetxController {
     }).toList();
 
     final sessions = allSessions.where((session) {
+      if (session.isArchived) return false;
       if (session.date.isEmpty) return false;
       final d = DateTime.tryParse(session.date)?.toLocal();
       if (d == null) return false;
@@ -126,6 +127,7 @@ class DashboardController extends GetxController {
       final sessions = list
           .map((e) =>
               SessionModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .where((s) => !s.isArchived)
           .toList();
       sessions.sort((a, b) {
         try {

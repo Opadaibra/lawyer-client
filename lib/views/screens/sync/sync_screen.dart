@@ -7,6 +7,7 @@ import '../../../../data/services/storage_service.dart';
 import '../../../../controllers/auth_controller.dart';
 import '../../../../controllers/dashboard_controller.dart';
 import '../../../../controllers/case_controller.dart';
+import '../../../../controllers/task_controller.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -154,6 +155,12 @@ class _SyncScreenState extends State<SyncScreen> {
                            }
                            if (Get.isRegistered<CaseController>()) {
                              await Get.find<CaseController>().fetchCases();
+                              await Get.find<CaseController>().fetchArchivedCases();
+                              await Get.find<CaseController>().fetchArchivedSessions();
+                            }
+                            if (Get.isRegistered<TaskController>()) {
+                              await Get.find<TaskController>().fetchTasks();
+                              await Get.find<TaskController>().fetchArchivedTasks();
                            }
                          } catch (_) {}
                          Get.offAllNamed(AppRoutes.dashboard);

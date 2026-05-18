@@ -5,6 +5,7 @@ class SessionModel {
   final String decisions;
   final String? notes;
   final String? createdAt;
+  final String? archivedAt;
   /// من `GET /cases/all-sessions` عند وجود `case_file`
   final String? caseNumber;
   final String? court;
@@ -17,10 +18,13 @@ class SessionModel {
     required this.decisions,
     this.notes,
     this.createdAt,
+    this.archivedAt,
     this.caseNumber,
     this.court,
     this.clientName,
   });
+
+  bool get isArchived => archivedAt != null && archivedAt!.isNotEmpty;
 
   factory SessionModel.fromJson(Map<String, dynamic> json) {
     var caseId = json['case_file_id'] as int? ?? json['case_id'] as int? ?? 0;
@@ -47,6 +51,7 @@ class SessionModel {
       decisions: json['decisions'] as String? ?? '',
       notes: json['notes'] as String?,
       createdAt: json['created_at'] as String?,
+      archivedAt: json['archived_at'] as String?,
       caseNumber: caseNumber,
       court: court,
       clientName: clientName,
@@ -60,6 +65,7 @@ class SessionModel {
         'decisions': decisions,
         'notes': notes,
         'created_at': createdAt,
+        'archived_at': archivedAt,
         'case_number': caseNumber,
         'court': court,
         'client_name': clientName,
