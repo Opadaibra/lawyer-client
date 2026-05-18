@@ -189,7 +189,18 @@ class CaseController extends GetxController {
   Future<void> deleteSession(int id, int caseId) async {
     try {
       await _api.delete('/sessions/$id');
-      await fetchSessions(caseId);
+      // تحديث الواجهة فوراً
+      if (selectedCase.value?.id == caseId) {
+        final updated = selectedCase.value!.sessions
+            .where((s) => s.id != id)
+            .toList();
+        selectedCase.value = selectedCase.value!.copyWith(sessions: updated);
+      }
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().allSessions
+            .removeWhere((s) => s.id == id);
+        Get.find<DashboardController>().reloadAllSessions();
+      }
       _showSuccess('session_deleted'.tr);
     } catch (e) {
       _showError(e);
@@ -282,7 +293,13 @@ class CaseController extends GetxController {
   Future<void> deleteNote(int id, int caseId) async {
     try {
       await _api.delete('/notes/$id');
-      await fetchNotes(caseId);
+      // تحديث فوري
+      if (selectedCase.value?.id == caseId) {
+        final updated = selectedCase.value!.caseNotes
+            .where((n) => n.id != id)
+            .toList();
+        selectedCase.value = selectedCase.value!.copyWith(caseNotes: updated);
+      }
       _showSuccess('note_deleted'.tr);
     } catch (e) {
       _showError(e);
@@ -321,7 +338,13 @@ class CaseController extends GetxController {
   Future<void> deleteExpense(int id, int caseId) async {
     try {
       await _api.delete('/expenses/$id');
-      await fetchExpenses(caseId);
+      // تحديث فوري
+      if (selectedCase.value?.id == caseId) {
+        final updated = selectedCase.value!.expenses
+            .where((e) => e.id != id)
+            .toList();
+        selectedCase.value = selectedCase.value!.copyWith(expenses: updated);
+      }
       _showSuccess('expense_deleted'.tr);
     } catch (e) {
       _showError(e);
@@ -423,7 +446,13 @@ class CaseController extends GetxController {
   Future<void> deleteFee(int id, int caseId) async {
     try {
       await _api.delete('/fees/$id');
-      await fetchFees(caseId);
+      // تحديث فوري
+      if (selectedCase.value?.id == caseId) {
+        final updated = selectedCase.value!.fees
+            .where((f) => f.id != id)
+            .toList();
+        selectedCase.value = selectedCase.value!.copyWith(fees: updated);
+      }
       _showSuccess('fee_deleted'.tr);
     } catch (e) {
       _showError(e);

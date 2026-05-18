@@ -34,6 +34,10 @@ class ApiService {
     if (response.statusCode == 401) {
       throw Exception('دخول غير مصرح به');
     }
+    // 5xx: سيتم معالجتها في catch block وإضافتها للقائمة صامتاً
+    if (response.statusCode >= 500) {
+      throw const SocketException('خطأ خادم');
+    }
     if (response.statusCode >= 400) {
       Map<String, dynamic> body = {};
       try {
@@ -46,8 +50,6 @@ class ApiService {
         if (body['errors'] is Map) {
           final errMap = body['errors'] as Map;
           message = errMap.values.expand((e) => e is List ? e : [e]).join('\n');
-          
-          // ترجمات خاصة لأخطاء التحقق الشائعة
           if (message.contains('The email has already been taken')) {
               message = 'هذا البريد الإلكتروني مسجل مسبقاً';
           }
@@ -59,8 +61,6 @@ class ApiService {
         }
       } else if (body['message'] != null) {
         message = body['message'].toString();
-        
-        // ترجمات خاصة للرسائل المباشرة
         if (message == 'Invalid email or password') {
             message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
         }
@@ -73,12 +73,57 @@ class ApiService {
 
       if (message.toLowerCase().contains('unauthenticated'))
         message = 'يرجى تسجيل الدخول للمتابعة';
-      if (message.toLowerCase().contains('server error'))
-        message = 'حدث خطأ داخلي في الخادم';
       if (message.toLowerCase().contains('token expired'))
         message = 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً';
 
       throw Exception(message);
+    }
+  }
+
+  /// حذف عنصر من جميع الكاشات ذات الصلة — يُُُُُُُُُُُُُُُُُُُُُُستدعى بعد DELETE
+  static void _removeItemFromListCaches(String endpoint) {
+    final parts = endpoint.split('/').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return;
+    final lastPart = parts.last;
+    final id = int.tryParse(lastPart);
+    if (id == null) return;
+    final resource = parts.length >= 2 ? parts[parts.length - 2] : '';
+
+    void removeFromCache(String key) {
+      final cache = OfflineSyncService.getCachedResponse(key);
+      if (cache == null) return;
+      if (cache is List) {
+        final updated = List.from(cache)..removeWhere((e) => e is Map && e['id'] == id);
+        OfflineSyncService.cacheResponse(key, updated);
+      } else if (cache is Map) {
+        for (final listKey in ['data', resource, 'sessions', 'tasks', 'cases', 'clients', 'minutes', 'files']) {
+          if (cache[listKey] is List) {
+            (cache[listKey] as List).removeWhere((e) => e is Map && e['id'] == id);
+          }
+        }
+        OfflineSyncService.cacheResponse(key, cache);
+      }
+    }
+
+    // حذف من القائمة العامة (e.g. /sessions, /cases, /tasks)
+    removeFromCache('/$resource');
+    removeFromCache('/$resource/');
+    // حذف من كاش all-sessions إن كان المورد جلسة
+    if (resource == 'sessions') {
+      removeFromCache('/cases/all-sessions');
+    }
+    // حذف من كاش القضية الخاص — نحتاج للعثور عن case_file_id في الكاشات المحتملة
+    // نبحث في جميع كاشات /cases/*/sessions
+    final allSessionsCache = OfflineSyncService.getCachedResponse('/cases/all-sessions');
+    if (allSessionsCache is Map && allSessionsCache['data'] is List) {
+      final list = allSessionsCache['data'] as List;
+      final found = list.firstWhere((e) => e is Map && e['id'] == id, orElse: () => null);
+      if (found != null) {
+        final caseId = (found as Map)['case_file_id'];
+        if (caseId != null) {
+          removeFromCache('/cases/$caseId/sessions');
+        }
+      }
     }
   }
 
@@ -525,6 +570,7 @@ class ApiService {
     if (StorageService.isOfflineMode() && !isSyncCall) {
       await OfflineSyncService.queueAction(
           method: 'DELETE', endpoint: endpoint);
+      _removeItemFromListCaches(endpoint);
       return {'message': 'تم الحذف محلياً', 'status': 'success'};
     }
 
@@ -542,6 +588,7 @@ class ApiService {
           !endpoint.contains(AppConstants.changePassword)) {
         await OfflineSyncService.queueAction(
             method: 'DELETE', endpoint: endpoint);
+        _removeItemFromListCaches(endpoint);
         return {'message': 'تم الحذف محلياً', 'status': 'success'};
       }
       rethrow;
