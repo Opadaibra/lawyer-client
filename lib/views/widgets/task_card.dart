@@ -95,9 +95,9 @@ class TaskCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                    if (task.caseNumber != null)
+                    if (task.clientName != null || task.caseNumber != null)
                       Text(
-                        '${'task_case_prefix'.tr}: ${task.caseNumber}',
+                        '${'task_case_prefix'.tr}: ${task.clientName ?? task.caseNumber}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context).colorScheme.primary,
                             ),

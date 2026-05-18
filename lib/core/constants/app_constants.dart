@@ -1,11 +1,13 @@
 // App constants
 class AppConstants {
-  // static const String baseUrl = 'http://127.0.0.1/api';
+  // static const String baseUrl =
+  // 'https://unliberalised-maximumly-brittanie.ngrok-free.dev/api';
   static const String baseUrl = 'https://lawyer-server.de/api';
 
   // Auth endpoints
   static const String login = '/login';
   static const String register = '/register';
+  static const String changePassword = '/change-password';
 
   // Client endpoints
   static const String clients = '/clients';
@@ -53,13 +55,11 @@ class AppConstants {
     'pending',
     'in_progress',
     'completed',
-    'overdue',
   ];
 
   // Case statuses
   static const List<String> caseStatuses = [
     'open',
-    'closed',
     'pending',
     'archived',
   ];
@@ -68,5 +68,5 @@ class AppConstants {
   static const String appName = 'مكتب المحامي';
 
   // Refresh endpoint
-  static const String refresh = '/refresh/';
+  static const String refresh = '/refresh';
 }

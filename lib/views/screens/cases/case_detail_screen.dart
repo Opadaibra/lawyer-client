@@ -140,7 +140,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           const SizedBox(height: 16),
           _buildInfoCard(context, 'dates_and_notes'.tr, [
             _DetailTile(Icons.calendar_today_outlined, 'next_session_date'.tr, 
-                AppHelpers.formatDateHuman(c.nextSessionDate)),
+                AppHelpers.formatDateTime(c.nextSessionDate)),
             _DetailTile(Icons.notes, 'notes'.tr, c.notes ?? '---'),
           ]),
           const SizedBox(height: 16),
@@ -177,12 +177,24 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
             Icons.gavel_outlined,
             c.sessions, 
             (s) => ListTile(
-              title: Text(AppHelpers.formatDateHuman(s.date)),
+              title: Text(AppHelpers.formatDateTime(s.date)),
               subtitle: Text(s.decisions),
               trailing: canMutate
-                  ? IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      onPressed: () => ctrl.deleteSession(s.id, c.id))
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.forward, size: 18, color: Colors.blue),
+                          onPressed: () => _showPostponeDialog(context, ctrl, s.id, c.id),
+                          tooltip: 'transfer'.tr,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          onPressed: () => ctrl.deleteSession(s.id, c.id),
+                          tooltip: 'delete'.tr,
+                        ),
+                      ],
+                    )
                   : null,
             ),
             onAdd: () => _showAddSessionDialog(context, ctrl, c.id),
@@ -240,6 +252,24 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                   : null,
             ),
             onAdd: () => _showAddFeeDialog(context, ctrl, c.id),
+            canMutate: canMutate,
+          ),
+          const SizedBox(height: 16),
+          _buildHistorySection(
+            context, 
+            'tasks'.tr, 
+            Icons.assignment_outlined,
+            c.tasks ?? [], 
+            (t) => ListTile(
+              title: Text(t.title),
+              subtitle: Text(AppHelpers.formatDateHuman(t.dueDate)),
+              trailing: canMutate
+                  ? IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: () => Get.toNamed(AppRoutes.taskDetail, arguments: {'task': t}))
+                  : null,
+            ),
+            onAdd: () => Get.toNamed(AppRoutes.taskForm, arguments: {'case_id': c.id}),
             canMutate: canMutate,
           ),
         ],
@@ -314,7 +344,37 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(controller: dateCtrl, decoration: InputDecoration(labelText: 'date'.tr)),
+          StatefulBuilder(
+            builder: (context, setState) => TextField(
+              controller: dateCtrl,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'date_and_time'.tr,
+                suffixIcon: const Icon(Icons.access_time),
+              ),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (time != null) {
+                    final combined = DateTime(
+                      date.year, date.month, date.day, 
+                      time.hour, time.minute
+                    ).toUtc();
+                    setState(() => dateCtrl.text = combined.toIso8601String().replaceFirst('T', ' ').substring(0, 19));
+                  }
+                }
+              },
+            ),
+          ),
           TextField(controller: decisionCtrl, decoration: InputDecoration(labelText: 'decisions'.tr)),
           TextField(controller: noteCtrl, decoration: InputDecoration(labelText: 'notes'.tr)),
         ],
@@ -377,6 +437,94 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           ctrl.addFee(caseId, {'date': DateTime.now().toIso8601String(), 'value': double.tryParse(amountCtrl.text) ?? 0});
           Get.back();
         }, child: Text('add'.tr)),
+      ],
+    ));
+  }
+
+  void _showPostponeDialog(BuildContext context, CaseController ctrl, int sessionId, int caseId) {
+    final dateCtrl = TextEditingController();
+    final decisionCtrl = TextEditingController();
+
+    Get.dialog(AlertDialog(
+      title: Text('postpone'.tr),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          StatefulBuilder(
+            builder: (context, setState) => TextField(
+              controller: dateCtrl,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'new_date'.tr,
+                suffixIcon: const Icon(Icons.calendar_month),
+              ),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 1)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: const TimeOfDay(hour: 9, minute: 0),
+                  );
+                  if (time != null) {
+                    final combined = DateTime(
+                      date.year, date.month, date.day, 
+                      time.hour, time.minute
+                    ).toUtc();
+                    setState(() => dateCtrl.text = combined.toIso8601String().replaceFirst('T', ' ').substring(0, 19));
+                  }
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: decisionCtrl, 
+            decoration: InputDecoration(
+              labelText: 'decisions'.tr,
+              hintText: 'ماذا قررت المحكمة في هذه الجلسة؟',
+            ),
+            maxLines: 3,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+        Obx(() => ctrl.isSubmitting.value
+            ? const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : ElevatedButton(
+                onPressed: () async {
+                  if (dateCtrl.text.isEmpty) {
+                    Get.snackbar('error'.tr, 'يرجى اختيار التاريخ الجديد');
+                    return;
+                  }
+                  // أغلق الديالوغ فوراً قبل أي عملية أخرى
+                  Get.back();
+                  final success = await ctrl.postponeSession(sessionId, caseId, {
+                    'new_date': dateCtrl.text,
+                    'decisions': decisionCtrl.text,
+                  });
+                  if (success) {
+                    Get.snackbar(
+                      'success'.tr,
+                      'postpone_success'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  }
+                },
+                child: Text('transfer'.tr),
+              )),
       ],
     ));
   }

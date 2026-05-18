@@ -153,7 +153,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 validator: AppValidators.password,
                                 onFieldSubmitted: (_) => _login(),
                               ).animate().slideX(begin: -0.1, delay: 300.ms),
-                              const SizedBox(height: 24),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton(
+                                  onPressed: () => Get.toNamed('/forgot-password'),
+                                  child: const Text('نسيت كلمة المرور؟'),
+                                ),
+                              ).animate().fadeIn(delay: 350.ms),
+                              const SizedBox(height: 16),
                               // Login button
                               Obx(() => SizedBox(
                                     width: double.infinity,

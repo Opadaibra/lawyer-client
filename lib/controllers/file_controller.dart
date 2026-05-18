@@ -1,11 +1,13 @@
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/services/api_service.dart';
 import '../../data/models/file_model.dart';
 import '../../core/constants/app_constants.dart';
 
 class FileController extends GetxController {
   final ApiService _api = ApiService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   final files = <FileModel>[].obs;
   final isLoading = false.obs;
@@ -57,6 +59,19 @@ class FileController extends GetxController {
     }
   }
 
+  Future<void> fetchFilesByTask(int taskId) async {
+    isLoading.value = true;
+    try {
+      final response = await _api.getList('/files/by-task/$taskId');
+      final list = _parseList(response);
+      files.value = list.map((e) => FileModel.fromJson(e)).toList();
+    } catch (e) {
+      _showError(e);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   Future<bool> pickAndUpload({
     Map<String, String>? extraFields,
   }) async {
@@ -86,6 +101,72 @@ class FileController extends GetxController {
         files.insert(0, FileModel.fromJson(data));
       }
       _showSuccess('File uploaded / تم رفع الملف');
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    } finally {
+      isUploading.value = false;
+    }
+  }
+
+  /// Pick an image from the camera and upload it
+  Future<bool> pickAndUploadFromCamera({
+    Map<String, String>? extraFields,
+  }) async {
+    try {
+      final XFile? photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+
+      if (photo == null) return false;
+
+      isUploading.value = true;
+      final response = await _api.uploadFile(
+        filePath: photo.path,
+        fileName: photo.name,
+        fields: extraFields,
+      );
+
+      final data = (response['data'] as Map<String, dynamic>?) ?? response;
+      if (data.isNotEmpty) {
+        files.insert(0, FileModel.fromJson(data));
+      }
+      _showSuccess('تم رفع الصورة بنجاح');
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    } finally {
+      isUploading.value = false;
+    }
+  }
+
+  /// Pick an image from the gallery and upload it
+  Future<bool> pickAndUploadFromGallery({
+    Map<String, String>? extraFields,
+  }) async {
+    try {
+      final XFile? photo = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (photo == null) return false;
+
+      isUploading.value = true;
+      final response = await _api.uploadFile(
+        filePath: photo.path,
+        fileName: photo.name,
+        fields: extraFields,
+      );
+
+      final data = (response['data'] as Map<String, dynamic>?) ?? response;
+      if (data.isNotEmpty) {
+        files.insert(0, FileModel.fromJson(data));
+      }
+      _showSuccess('تم رفع الصورة بنجاح');
       return true;
     } catch (e) {
       _showError(e);

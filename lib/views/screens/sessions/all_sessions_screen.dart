@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lawyer_client/controllers/case_controller.dart';
 
 import '../../../app/routes/app_routes.dart';
 import '../../../controllers/dashboard_controller.dart';
@@ -132,14 +133,32 @@ class _SessionCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.event, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 6),
-                  Text(
-                    AppHelpers.formatDateTime(session.date),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(Icons.event, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
+                        Text(
+                          AppHelpers.formatDateTime(session.date),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _showPostponeDialog(context, session),
+                    icon: const Icon(Icons.forward, size: 16),
+                    label: Text('transfer'.tr,
+                        style: const TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 0),
+                      visualDensity: VisualDensity.compact,
                     ),
                   ),
                 ],
@@ -151,7 +170,8 @@ class _SessionCard extends StatelessWidget {
                   style: TextStyle(fontSize: 13, color: Colors.grey[800]),
                 ),
               ],
-              if (session.notes != null && session.notes!.trim().isNotEmpty) ...[
+              if (session.notes != null &&
+                  session.notes!.trim().isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
                   session.notes!,
@@ -163,5 +183,98 @@ class _SessionCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showPostponeDialog(BuildContext context, SessionModel s) {
+    final dateCtrl = TextEditingController();
+    final decisionCtrl = TextEditingController();
+    final caseCtrl = Get.find<CaseController>();
+    final dash = Get.find<DashboardController>();
+
+    Get.dialog(AlertDialog(
+      title: Text('postpone'.tr),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          StatefulBuilder(
+            builder: (context, setState) => TextField(
+              controller: dateCtrl,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'new_date'.tr,
+                suffixIcon: const Icon(Icons.calendar_month),
+              ),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 1)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: const TimeOfDay(hour: 9, minute: 0),
+                  );
+                  if (time != null) {
+                    final combined = DateTime(date.year, date.month, date.day,
+                            time.hour, time.minute)
+                        .toUtc();
+                    setState(() => dateCtrl.text = combined
+                        .toIso8601String()
+                        .replaceFirst('T', ' ')
+                        .substring(0, 19));
+                  }
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: decisionCtrl,
+            decoration: InputDecoration(
+              labelText: 'decisions'.tr,
+              hintText: 'ماذا قررت المحكمة في هذه الجلسة؟',
+            ),
+            maxLines: 3,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+        Obx(() => caseCtrl.isSubmitting.value
+            ? const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : ElevatedButton(
+                onPressed: () async {
+                  if (dateCtrl.text.isEmpty) {
+                    Get.snackbar('error'.tr, 'يرجى اختيار التاريخ الجديد');
+                    return;
+                  }
+                  // أغلق الديالوغ فوراً قبل أي عملية أخرى
+                  Get.back();
+                  final success = await caseCtrl.postponeSession(s.id, s.caseId, {
+                    'new_date': dateCtrl.text,
+                    'decisions': decisionCtrl.text,
+                  });
+                  if (success) {
+                    dash.refreshDashboard();
+                    Get.snackbar(
+                      'success'.tr,
+                      'postpone_success'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  }
+                },
+                child: Text('transfer'.tr),
+              )),
+      ],
+    ));
   }
 }

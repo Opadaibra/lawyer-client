@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class AppHelpers {
+  static const List<String> _monthsAr = [
+    'كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران',
+    'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'
+  ];
+
   /// Format date to readable string
   static String formatDate(String? dateStr, {String pattern = 'yyyy-MM-dd'}) {
     if (dateStr == null || dateStr.isEmpty) return '---';
@@ -13,26 +18,41 @@ class AppHelpers {
     }
   }
 
-  /// Format date to human readable
+  /// Format date to human readable (Arabic Months)
   static String formatDateHuman(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '---';
     try {
-      final date = DateTime.parse(dateStr).toLocal();
-      return DateFormat('dd MMM yyyy').format(date);
+      final normalized = normalizeApiDateString(dateStr) ?? dateStr;
+      final date = DateTime.parse(normalized).toLocal();
+      final monthName = _monthsAr[date.month - 1];
+      return '${date.day} $monthName ${date.year}';
     } catch (_) {
       return dateStr;
     }
   }
 
-  /// Format date-time
+  /// Format date-time (Arabic Months)
   static String formatDateTime(String? dateStr) {
     if (dateStr == null || dateStr.isEmpty) return '---';
     try {
       final normalized = normalizeApiDateString(dateStr) ?? dateStr;
-      final date = DateTime.parse(normalized).toUtc().toLocal();
-      return DateFormat('dd MMM yyyy – HH:mm').format(date);
+      final date = DateTime.parse(normalized).toLocal();
+      final monthName = _monthsAr[date.month - 1];
+      final time = '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      return '${date.day} $monthName ${date.year} – $time';
     } catch (_) {
       return dateStr;
+    }
+  }
+
+  static String formatTimeOnly(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return '---';
+    try {
+      final normalized = normalizeApiDateString(dateStr) ?? dateStr;
+      final date = DateTime.parse(normalized).toLocal();
+      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return dateStr.length > 10 ? dateStr.substring(11, 16) : dateStr;
     }
   }
 
@@ -49,18 +69,27 @@ class AppHelpers {
 
   /// عرض لحظة UTC بتوقيت الجهاز المحلي.
   static String formatDateTimeLocalFromUtc(DateTime utcInstant) {
-    return DateFormat('dd MMM yyyy – HH:mm').format(utcInstant.toLocal());
+    final date = utcInstant.toLocal();
+    final time = DateFormat('HH:mm').format(date);
+    return '${date.day} ${_monthsAr[date.month - 1]} ${date.year} – $time';
   }
 
   /// تطبيع سلسلة التاريخ القادمة من الـ API لمقارنة دقيقة (UTC).
   static String? normalizeApiDateString(dynamic raw) {
     if (raw == null) return null;
-    final s = raw.toString().trim();
+    var s = raw.toString().trim();
     if (s.isEmpty) return null;
+    
+    // إذا كان يحتوي على مسافة بدلاً من T، نحولها لـ T لتسهيل التحليل
+    if (s.contains(' ') && !s.contains('T')) {
+      s = s.replaceFirst(' ', 'T');
+    }
+
     if (s.endsWith('Z')) return s;
     if (RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(s)) return s;
-    if (s.contains('T')) return '${s}Z';
-    return s;
+    
+    // إذا لم يكن هناك منطقة زمنية، نفترض أنه UTC القادم من السيرفر
+    return '${s}Z';
   }
 
   /// لحظة الاستحقاق كـ UTC (للمقارنة مع DateTime.now().toUtc()).

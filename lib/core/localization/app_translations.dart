@@ -52,7 +52,10 @@ class AppTranslations extends Translations {
           'password': 'كلمة المرور',
           'current_password': 'كلمة المرور الحالية',
           'new_password': 'كلمة المرور الجديدة',
+          'confirm_password': 'تأكيد كلمة المرور',
           'change_password': 'تغيير كلمة المرور',
+          'password_changed_success': 'تم تغيير كلمة المرور بنجاح',
+          'passwords_dont_match': 'كلمتا المرور غير متطابقتين',
           'change': 'تغيير',
           'password_change_backend': 'تغيير كلمة المرور يتطلب تحديث الباك-إند',
 
@@ -87,7 +90,11 @@ class AppTranslations extends Translations {
           'office_phone': 'هاتف المكتب',
           'office_email': 'بريد المكتب الإلكتروني',
           'office_id_label': 'معرّف المكتب',
-          'office_team_note': 'جميع أعضاء الفريق المنتمون لهذا المكتب يشاركونك نفس البيانات',
+          'about_office': 'عن المكتب',
+          'about_the_office_content':
+              'نحن مكتب المحاماة الرائد، نقدم خدماتنا القانونية بكل احترافية وأمانة. خبرتنا تمتد لسنوات في مختلف أنواع القضايا.',
+          'office_team_note':
+              'جميع أعضاء الفريق المنتمون لهذا المكتب يشاركونك نفس البيانات',
 
           // ── الفريق ────────────────────────────────────────
           'team': 'الفريق',
@@ -96,7 +103,7 @@ class AppTranslations extends Translations {
           'basic_info': 'المعلومات الأساسية',
 
           // ── الموكلين ──────────────────────────────────────
-          'clients': 'الموكلين',
+          'clients': 'الموكلون',
           'client': 'الموكل',
           'add_client': 'إضافة موكل',
           'edit_client': 'تعديل بيانات الموكل',
@@ -105,7 +112,7 @@ class AppTranslations extends Translations {
           'client_full_name': 'الاسم الكامل *',
           'client_account_section': 'حساب تسجيل دخول الموكل (اختياري)',
           'client_password_hint': 'كلمة المرور لتفعيل حساب الموكل',
-          'recent_clients': 'الموكلون الأخيرون',
+          'recent_clients': 'الموكلين الأخيرين',
           'total_clients': 'إجمالي الموكلين',
           'member_since': 'عضو منذ',
           'power_of_attorney_number': 'رقم وكالة',
@@ -170,24 +177,31 @@ class AppTranslations extends Translations {
           'item': 'البند',
           'amount': 'المبلغ',
           'date': 'التاريخ',
+          'date_and_time': 'التاريخ والوقت',
           'decisions': 'القرارات',
 
           // ── الحالات ───────────────────────────────────────
           'active': 'نشطة',
           'archived': 'مؤرشفة',
-          'pending': 'معلقة',
+          'pending': 'قائمة',
+          'suspended': 'معلقة',
           'in_progress': 'جارية',
           'completed': 'مكتملة',
           'overdue': 'متأخرة',
+          'postpone': 'ترحيل الجلسة',
+          'transfer': 'ترحيل',
+          'new_date': 'التاريخ الجديد',
+          'postpone_success': 'تم ترحيل الجلسة بنجاح',
           'open': 'مفتوحة',
           'closed': 'مغلقة',
           'unarchive': 'إلغاء الأرشفة',
 
           // ── المهام ────────────────────────────────────────
           'tasks': 'المهام',
+          'uncompleted_tasks': 'المهام غير المكتملة',
           'new_task': 'مهمة جديدة',
           'no_tasks': 'لا توجد مهام',
-          'pending_tasks': 'مهام معلقة',
+          'pending_tasks': 'مهام قائمة',
           'overdue_tasks': 'مهام متأخرة',
           'recent_tasks': 'المهام الأخيرة',
           'task_detail': 'تفاصيل المهمة',

@@ -71,7 +71,7 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             if (ctrl.clientResults.isNotEmpty) ...[
               _SectionHeader(
-                  'Clients / الموكلون', ctrl.clientResults.length),
+                  'Clients / الموكلين', ctrl.clientResults.length),
               ...ctrl.clientResults.map((c) => ListTile(
                     leading: CircleAvatar(
                       backgroundColor: AppTheme.primary.withOpacity(0.1),

@@ -12,6 +12,7 @@ class TaskController extends GetxController {
   final ApiService _api = ApiService();
 
   final tasks = <TaskModel>[].obs;
+  final archivedTasks = <TaskModel>[].obs;
   final selectedTask = Rx<TaskModel?>(null);
   final isLoading = false.obs;
   final isSubmitting = false.obs;
@@ -38,6 +39,15 @@ class TaskController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> fetchArchivedTasks() async {
+    try {
+      final response =
+          await _api.getList('${AppConstants.tasks}/?archived=true');
+      final list = _parseList(response);
+      archivedTasks.value = list.map((e) => TaskModel.fromJson(e)).toList();
+    } catch (_) {}
   }
 
   /// تحديث المهام بدون إظهار مؤشر التحميل (للفحص الدوري).
@@ -184,6 +194,7 @@ class TaskController extends GetxController {
     try {
       await _api.post('${AppConstants.tasks}/$id/archive');
       await fetchTasks();
+      await fetchArchivedTasks();
       _showSuccess('task_archived'.tr);
     } catch (e) {
       _showError(e);
@@ -194,6 +205,7 @@ class TaskController extends GetxController {
     try {
       await _api.post('${AppConstants.tasks}/$id/unarchive');
       await fetchTasks();
+      await fetchArchivedTasks();
       _showSuccess('task_unarchived'.tr);
     } catch (e) {
       _showError(e);

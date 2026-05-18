@@ -44,19 +44,42 @@ class DashboardController extends GetxController {
         return Colors.blue;
       case 'pending':
         return Colors.orange;
+      case 'suspended':
+        return Colors.blueGrey;
       default:
         return Colors.grey;
     }
   }
 
-  List<TaskModel> filterTasksByDate(DateTime date) {
-    return allTasks.where((task) {
+  List<dynamic> filterItemsByDate(DateTime date) {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
+    final tasks = allTasks.where((task) {
       if (task.dueDate == null) return false;
       final dueUtc = AppHelpers.dueInstantUtc(task.dueDate);
       if (dueUtc == null) return false;
       final d = dueUtc.toLocal();
+      
+      // إخفاء المهام القديمة التي تاريخها أقدم من اليوم في التقويم
+      final taskDay = DateTime(d.year, d.month, d.day);
+      if (taskDay.isBefore(today)) return false;
+
       return d.year == date.year && d.month == date.month && d.day == date.day;
     }).toList();
+
+    final sessions = allSessions.where((session) {
+      if (session.date.isEmpty) return false;
+      final d = DateTime.tryParse(session.date)?.toLocal();
+      if (d == null) return false;
+
+      // إخفاء الجلسات القديمة التي تاريخها أقدم من اليوم في التقويم
+      final sessionDay = DateTime(d.year, d.month, d.day);
+      if (sessionDay.isBefore(today)) return false;
+
+      return d.year == date.year && d.month == date.month && d.day == date.day;
+    }).toList();
+
+    return [...tasks, ...sessions];
   }
 
   Future<void> loadDashboard() async {
@@ -69,6 +92,7 @@ class DashboardController extends GetxController {
         _loadMinutes(),
         _loadAllSessions(),
       ]);
+      NotificationService.scheduleDailyReminder(allTasks, allSessions);
     } catch (_) {
     } finally {
       isLoading.value = false;
@@ -112,6 +136,7 @@ class DashboardController extends GetxController {
       });
       allSessions.assignAll(sessions);
       totalSessions.value = sessions.length;
+      NotificationService.checkSessionReminders(sessions);
     } catch (_) {
       allSessions.clear();
       totalSessions.value = 0;
@@ -132,13 +157,13 @@ class DashboardController extends GetxController {
       final list = _parseList(response);
       final tasks = list.map((e) => TaskModel.fromJson(e)).toList();
       allTasks.value = tasks;
+      // نعد المهام النشطة (غير المكتملة)
       pendingTasks.value =
-          tasks.where((t) => t.status == 'pending').length;
+          tasks.where((t) => t.status != 'completed' && !t.isArchived).length;
       overdueTasks.value = tasks.where((t) {
-        if (t.dueDate == null || t.status == 'completed') return false;
+        if (t.dueDate == null || t.status == 'completed' || t.isArchived) return false;
         return AppHelpers.isOverdue(t.dueDate);
       }).length;
-      NotificationService.scheduleDailyTaskReminder(tasks);
     } catch (_) {}
   }
 

@@ -4,6 +4,7 @@ class TaskModel {
   final int id;
   final int? caseFileId; // case_file_id in API
   final String? caseNumber;
+  final String? clientName;
   final String title;
   final String? description;
   final String? taskType;
@@ -11,7 +12,7 @@ class TaskModel {
   final String? notes;
   final int? fileId;
   final String? dueDate;
-  final String status; // pending, in_progress, completed, overdue
+  final String status; // pending, in_progress, completed, overdue, suspended
   final bool isArchived;
   final String? createdAt;
 
@@ -19,6 +20,7 @@ class TaskModel {
     required this.id,
     this.caseFileId,
     this.caseNumber,
+    this.clientName,
     required this.title,
     this.description,
     this.taskType,
@@ -35,6 +37,7 @@ class TaskModel {
         id: json['id'] as int? ?? 0,
         caseFileId: json['case_file_id'] as int?,
         caseNumber: json['case']?['case_number'] as String?,
+        clientName: json['case']?['client']?['name'] as String?,
         title: json['title'] as String? ?? '',
         description: json['description'] as String?,
         taskType: json['task_type'] as String?,

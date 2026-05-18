@@ -22,6 +22,7 @@ class _FilesScreenState extends State<FilesScreen> {
   final fileCtrl = Get.find<FileController>();
   int? caseId;
   int? minuteId;
+  int? taskId;
 
   @override
   void initState() {
@@ -29,27 +30,113 @@ class _FilesScreenState extends State<FilesScreen> {
     final args = Get.arguments as Map<String, dynamic>?;
     caseId = args?['caseId'];
     minuteId = args?['minuteId'];
+    taskId = args?['taskId'];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (caseId != null) {
-        fileCtrl.fetchFilesByCase(caseId!);
-      } else if (minuteId != null) {
-        fileCtrl.fetchFilesByMinute(minuteId!);
-      } else {
-        fileCtrl.fetchFiles();
-      }
+      _loadFiles();
     });
   }
 
-  Future<void> _refresh() async {
+  Future<void> _loadFiles() async {
     if (caseId != null) {
       await fileCtrl.fetchFilesByCase(caseId!);
     } else if (minuteId != null) {
       await fileCtrl.fetchFilesByMinute(minuteId!);
+    } else if (taskId != null) {
+      await fileCtrl.fetchFilesByTask(taskId!);
     } else {
       await fileCtrl.fetchFiles();
     }
   }
+
+  Future<void> _refresh() => _loadFiles();
+
+  Map<String, String> get _extraFields {
+    final fields = <String, String>{};
+    if (caseId != null) fields['case_id'] = caseId.toString();
+    if (minuteId != null) fields['minute_id'] = minuteId.toString();
+    if (taskId != null) fields['task_id'] = taskId.toString();
+    return fields;
+  }
+
+  void _showUploadOptions(BuildContext context, bool canMutate) async {
+    if (!canMutate) return;
+
+    Map<String, String> fields = _extraFields;
+
+    // If no context filter is set (general list), ask for link first
+    if (caseId == null && minuteId == null && taskId == null) {
+      final selectedFields = await Get.dialog<Map<String, String>?>(
+        const FileUploadDialog(),
+      );
+      if (selectedFields == null) return; // User cancelled
+      fields = selectedFields;
+    }
+
+    // Now show source options
+    if (!mounted) return;
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text('اختيار مصدر الملف',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _UploadOptionTile(
+                  icon: Icons.camera_alt_outlined,
+                  label: 'الكاميرا',
+                  color: AppTheme.primary,
+                  onTap: () async {
+                    Get.back();
+                    final success = await fileCtrl.pickAndUploadFromCamera(extraFields: fields);
+                    if (success) _loadFiles();
+                  },
+                ),
+                _UploadOptionTile(
+                  icon: Icons.photo_library_outlined,
+                  label: 'المعرض',
+                  color: Colors.purple,
+                  onTap: () async {
+                    Get.back();
+                    final success = await fileCtrl.pickAndUploadFromGallery(extraFields: fields);
+                    if (success) _loadFiles();
+                  },
+                ),
+                _UploadOptionTile(
+                  icon: Icons.attach_file_outlined,
+                  label: 'ملف',
+                  color: Colors.orange,
+                  onTap: () async {
+                    Get.back();
+                    final success = await fileCtrl.pickAndUpload(extraFields: fields);
+                    if (success) _loadFiles();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -62,29 +149,19 @@ class _FilesScreenState extends State<FilesScreen> {
       ),
       body: Obx(() {
         if (fileCtrl.isLoading.value) return const LoadingWidget();
-        final canMutate =
-            auth.currentUser.value?.canMutateOfficeContent ?? true;
+        final canMutate = auth.currentUser.value?.canMutateOfficeContent ?? true;
+
         if (fileCtrl.files.isEmpty) {
           return EmptyStateWidget(
             title: 'لم يتم رفع ملفات',
             icon: Icons.folder_open_outlined,
             onAction: canMutate
-                ? () async {
-                    final fields = await Get.dialog<Map<String, String>?>(
-                        const FileUploadDialog());
-                    final Map<String, String> uploadFields = fields ?? {};
-                    if (caseId != null) {
-                      uploadFields['case_id'] = caseId.toString();
-                    }
-                    if (minuteId != null) {
-                      uploadFields['minute_id'] = minuteId.toString();
-                    }
-                    await fileCtrl.pickAndUpload(extraFields: uploadFields);
-                  }
+                ? () => _showUploadOptions(context, canMutate)
                 : null,
-            actionLabel: ' رفع ملف',
+            actionLabel: 'رفع ملف',
           );
         }
+
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView.builder(
@@ -92,6 +169,7 @@ class _FilesScreenState extends State<FilesScreen> {
             padding: const EdgeInsets.only(bottom: 80),
             itemBuilder: (_, i) {
               final file = fileCtrl.files[i];
+              final linkedLabel = file.linkedEntityLabel;
               return Card(
                 child: ListTile(
                   leading: ClipRRect(
@@ -118,6 +196,33 @@ class _FilesScreenState extends State<FilesScreen> {
                       Text(AppHelpers.formatDateHuman(file.createdAt),
                           style: const TextStyle(
                               fontSize: 11, color: Colors.grey)),
+                      // ── Linked entity label ──────────────────────
+                      if (linkedLabel != null)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_linkedIcon(file),
+                                  size: 12, color: AppTheme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                linkedLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                   trailing: Row(
@@ -127,14 +232,14 @@ class _FilesScreenState extends State<FilesScreen> {
                         icon: const Icon(Icons.open_in_new_outlined,
                             color: AppTheme.primary),
                         onPressed: () => _openFile(context, file),
-                        tooltip: 'View / عرض',
+                        tooltip: 'عرض',
                       ),
                       if (canMutate)
                         IconButton(
                           icon: const Icon(Icons.delete_outline,
                               color: Colors.red),
                           onPressed: () => _confirmDelete(fileCtrl, file.id),
-                          tooltip: 'Delete / حذف',
+                          tooltip: 'حذف',
                         ),
                     ],
                   ),
@@ -152,18 +257,7 @@ class _FilesScreenState extends State<FilesScreen> {
         return FloatingActionButton.extended(
           onPressed: fileCtrl.isUploading.value
               ? null
-              : () async {
-                  final fields = await Get.dialog<Map<String, String>?>(
-                      const FileUploadDialog());
-                  final Map<String, String> uploadFields = fields ?? {};
-                  if (caseId != null) {
-                    uploadFields['case_id'] = caseId.toString();
-                  }
-                  if (minuteId != null) {
-                    uploadFields['minute_id'] = minuteId.toString();
-                  }
-                  await fileCtrl.pickAndUpload(extraFields: uploadFields);
-                },
+              : () => _showUploadOptions(context, canMutate),
           icon: fileCtrl.isUploading.value
               ? const SizedBox(
                   width: 18,
@@ -171,24 +265,30 @@ class _FilesScreenState extends State<FilesScreen> {
                   child: CircularProgressIndicator(
                       color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.upload_file_outlined),
-          label: Text(fileCtrl.isUploading.value ? 'جاري الرفع' : ' رفع ملف'),
+          label: Text(fileCtrl.isUploading.value ? 'جاري الرفع' : 'رفع ملف'),
         );
       }),
     );
   }
 
+  IconData _linkedIcon(dynamic file) {
+    if (file.caseId != null) return Icons.folder_outlined;
+    if (file.minuteId != null) return Icons.description_outlined;
+    if (file.taskId != null) return Icons.task_outlined;
+    if (file.clientId != null) return Icons.person_outlined;
+    return Icons.link;
+  }
+
   void _openFile(BuildContext context, dynamic file) async {
     if (file.absoluteUrl != null) {
-       Get.toNamed('/file-viewer', arguments: {'file': file});
-       return;
+      Get.toNamed('/file-viewer', arguments: {'file': file});
+      return;
     }
-    
     if (file.localPath != null && File(file.localPath!).existsSync()) {
       await OpenFilex.open(file.localPath!);
       return;
     }
-    
-    Get.snackbar('Error', 'No file URL available or local path not found');
+    Get.snackbar('خطأ', 'لا يوجد رابط أو مسار محلي للملف');
   }
 
   Widget _buildFileLeading(dynamic file) {
@@ -202,7 +302,8 @@ class _FilesScreenState extends State<FilesScreen> {
             color: AppTheme.primary,
           ),
         );
-      } else if (file.localPath != null && File(file.localPath!).existsSync()) {
+      } else if (file.localPath != null &&
+          File(file.localPath!).existsSync()) {
         return Image.file(
           File(file.localPath!),
           fit: BoxFit.cover,
@@ -222,19 +323,61 @@ class _FilesScreenState extends State<FilesScreen> {
 
   void _confirmDelete(FileController ctrl, int id) {
     Get.dialog(AlertDialog(
-      title: const Text('Delete File / حذف الملف'),
-      content: const Text('Are you sure? / هل أنت متأكد؟'),
+      title: const Text('حذف الملف'),
+      content: const Text('هل أنت متأكد؟'),
       actions: [
-        TextButton(onPressed: Get.back, child: const Text('Cancel')),
+        TextButton(onPressed: Get.back, child: const Text('إلغاء')),
         ElevatedButton(
           onPressed: () {
             Get.back();
             ctrl.deleteFile(id);
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          child: const Text('Delete'),
+          child: const Text('حذف'),
         ),
       ],
     ));
+  }
+}
+
+// ── Upload Option Tile ────────────────────────────────────────────────────────
+class _UploadOptionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _UploadOptionTile({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
   }
 }

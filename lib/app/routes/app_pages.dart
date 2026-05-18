@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../../views/screens/auth/login_screen.dart';
 import '../../views/screens/auth/register_screen.dart';
+import '../../views/screens/auth/forgot_password_screen.dart';
 import '../../views/screens/dashboard_screen.dart';
 import '../../views/screens/main_navigation_screen.dart';
 import '../../views/screens/archive_screen.dart';
@@ -26,6 +27,7 @@ import '../../views/screens/team/team_screen.dart';
 import '../../views/screens/client_portal/client_portal_screen.dart';
 import '../../views/screens/client_portal/client_portal_case_detail_screen.dart';
 import '../../views/screens/office/office_info_screen.dart';
+import '../../views/screens/office/about_office_screen.dart';
 import '../../views/screens/sync/sync_screen.dart';
 import 'app_routes.dart';
 
@@ -34,6 +36,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.login,
       page: () => const LoginScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.forgotPassword,
+      page: () => const ForgotPasswordScreen(),
     ),
     GetPage(
       name: AppRoutes.register,
@@ -74,6 +80,7 @@ class AppPages {
     GetPage(
         name: AppRoutes.clientPortalCaseDetail,
         page: () => const ClientPortalCaseDetailScreen()),
+    GetPage(name: AppRoutes.aboutOffice, page: () => const AboutOfficeScreen()),
     GetPage(name: AppRoutes.syncData, page: () => const SyncScreen()),
   ];
 }

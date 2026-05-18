@@ -3,11 +3,15 @@ import '../../data/services/api_service.dart';
 import '../../data/models/case_model.dart';
 import '../../data/models/sub_resource_models.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/services/notification_service.dart';
+import '../controllers/dashboard_controller.dart';
 
 class CaseController extends GetxController {
   final ApiService _api = ApiService();
 
   final cases = <CaseModel>[].obs;
+  final archivedCases = <CaseModel>[].obs;
+  final archivedSessions = <SessionModel>[].obs;
   final selectedCase = Rx<CaseModel?>(null);
   final isLoading = false.obs;
   final isSubmitting = false.obs;
@@ -39,7 +43,9 @@ class CaseController extends GetxController {
     try {
       final response = await _api.get('${AppConstants.cases}/$id');
       final data = _extractData(response);
-      selectedCase.value = CaseModel.fromJson(data);
+      if (data.isNotEmpty) {
+        selectedCase.value = CaseModel.fromJson(data);
+      }
     } catch (e) {
       _showError(e);
     } finally {
@@ -84,7 +90,8 @@ class CaseController extends GetxController {
   Future<bool> updateCase(int id, CaseModel caseModel) async {
     isSubmitting.value = true;
     try {
-      await _api.patch('${AppConstants.cases}/$id', data: caseModel.toCreateJson());
+      await _api.patch('${AppConstants.cases}/$id',
+          data: caseModel.toCreateJson());
       await fetchCases();
       Get.back();
       _showSuccess('case_updated'.tr);
@@ -110,11 +117,23 @@ class CaseController extends GetxController {
     }
   }
 
+  Future<void> fetchArchivedCases() async {
+    try {
+      final response =
+          await _api.getList('${AppConstants.cases}/?archived=true');
+      final list = _parseList(response);
+      archivedCases.value = list.map((e) => CaseModel.fromJson(e)).toList();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
   // ─── Archive/Unarchive ────────────────────────────────────────────────────
   Future<void> archiveCase(int id) async {
     try {
       await _api.post('${AppConstants.cases}/$id/archive');
       await fetchCases();
+      await fetchArchivedCases();
       _showSuccess('case_archived'.tr);
     } catch (e) {
       _showError(e);
@@ -125,6 +144,7 @@ class CaseController extends GetxController {
     try {
       await _api.post('${AppConstants.cases}/$id/unarchive');
       await fetchCases();
+      await fetchArchivedCases();
       _showSuccess('case_unarchived'.tr);
     } catch (e) {
       _showError(e);
@@ -139,9 +159,13 @@ class CaseController extends GetxController {
       final response =
           await _api.getList('${AppConstants.cases}/$caseId/sessions');
       final list = _parseList(response);
-      final listModels = list.map((e) => SessionModel.fromJson(e)).toList();
-      if (selectedCase.value?.id == caseId) {
-        selectedCase.value = selectedCase.value!.copyWith(sessions: listModels);
+      if (list.isNotEmpty) {
+        final listModels = list.map((e) => SessionModel.fromJson(e)).toList();
+        if (selectedCase.value?.id == caseId) {
+          selectedCase.value =
+              selectedCase.value!.copyWith(sessions: listModels);
+        }
+        NotificationService.checkSessionReminders(listModels);
       }
     } catch (e) {
       _showError(e);
@@ -152,6 +176,9 @@ class CaseController extends GetxController {
     try {
       await _api.post('${AppConstants.cases}/$caseId/sessions', data: data);
       await fetchSessions(caseId);
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().reloadAllSessions();
+      }
       return true;
     } catch (e) {
       _showError(e);
@@ -169,16 +196,72 @@ class CaseController extends GetxController {
     }
   }
 
+  Future<bool> postponeSession(
+      int sessionId, int caseId, Map<String, dynamic> data) async {
+    isSubmitting.value = true;
+    try {
+      data['case_id'] = caseId;
+      await _api.post('/sessions/$sessionId/postpone', data: data);
+      await fetchSessions(caseId);
+      if (Get.isRegistered<DashboardController>()) {
+        await Get.find<DashboardController>().reloadAllSessions();
+      }
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    } finally {
+      isSubmitting.value = false;
+    }
+  }
+
+  Future<void> fetchArchivedSessions() async {
+    try {
+      final response = await _api
+          .getList('${AppConstants.cases}/all-sessions?archived=true');
+      final list = _parseList(response);
+      archivedSessions.value = list
+          .map((e) => SessionModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> archiveSession(int id, int caseId) async {
+    try {
+      await _api.post('/sessions/$id/archive');
+      await fetchSessions(caseId);
+      await fetchArchivedSessions();
+      _showSuccess('session_archived'.tr);
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
+  Future<void> unarchiveSession(int id, int caseId) async {
+    try {
+      await _api.post('/sessions/$id/unarchive');
+      await fetchSessions(caseId);
+      await fetchArchivedSessions();
+      _showSuccess('session_unarchived'.tr);
+    } catch (e) {
+      _showError(e);
+    }
+  }
+
   // Notes
   Future<void> fetchNotes(int caseId) async {
     try {
       final response =
           await _api.getList('${AppConstants.cases}/$caseId/notes');
       final list = _parseList(response);
-      final listModels = list.map((e) => CaseNoteModel.fromJson(e)).toList();
-      if (selectedCase.value?.id == caseId) {
-        selectedCase.value =
-            selectedCase.value!.copyWith(caseNotes: listModels);
+      if (list.isNotEmpty) {
+        final listModels = list.map((e) => CaseNoteModel.fromJson(e)).toList();
+        if (selectedCase.value?.id == caseId) {
+          selectedCase.value =
+              selectedCase.value!.copyWith(caseNotes: listModels);
+        }
       }
     } catch (e) {
       _showError(e);
@@ -212,9 +295,12 @@ class CaseController extends GetxController {
       final response =
           await _api.getList('${AppConstants.cases}/$caseId/expenses');
       final list = _parseList(response);
-      final listModels = list.map((e) => ExpenseModel.fromJson(e)).toList();
-      if (selectedCase.value?.id == caseId) {
-        selectedCase.value = selectedCase.value!.copyWith(expenses: listModels);
+      if (list.isNotEmpty) {
+        final listModels = list.map((e) => ExpenseModel.fromJson(e)).toList();
+        if (selectedCase.value?.id == caseId) {
+          selectedCase.value =
+              selectedCase.value!.copyWith(expenses: listModels);
+        }
       }
     } catch (e) {
       _showError(e);
@@ -247,6 +333,8 @@ class CaseController extends GetxController {
     try {
       final response = await _api.get('${AppConstants.cases}/$caseId/fees');
       final raw = response['data'];
+      if (raw == null) return;
+
       double? agreed;
       double? paid;
       List<dynamic> listRaw = [];
@@ -270,6 +358,8 @@ class CaseController extends GetxController {
           listRaw = rec;
         }
       }
+
+      if (listRaw.isEmpty && agreed == 0 && paid == 0) return;
 
       final listModels = listRaw
           .map((e) => FeeModel.fromJson(Map<String, dynamic>.from(e as Map)))

@@ -1,6 +1,7 @@
 class AppRoutes {
   static const String splash = '/';
   static const String login = '/login';
+  static const String forgotPassword = '/forgot-password';
   static const String register = '/register';
   static const String dashboard = '/dashboard';
   static const String mainNav = '/main-nav';
@@ -39,5 +40,6 @@ class AppRoutes {
   static const String officeInfo = '/office-info';
   static const String clientPortal = '/client-portal';
   static const String clientPortalCaseDetail = '/client-portal/case-detail';
+  static const String aboutOffice = '/about-office';
   static const String syncData = '/sync';
 }

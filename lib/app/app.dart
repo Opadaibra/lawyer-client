@@ -10,6 +10,8 @@ import '../core/localization/app_translations.dart';
 import 'routes/app_pages.dart';
 import 'routes/app_routes.dart';
 
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+
 class LawyerApp extends StatefulWidget {
   const LawyerApp({super.key});
 
@@ -76,6 +78,8 @@ class _LawyerAppState extends State<LawyerApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       defaultTransition: Transition.cupertino,
+      navigatorObservers: [routeObserver],
     );
   }
 }
+

@@ -5,6 +5,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../data/services/offline_sync_service.dart';
 import '../../../../data/services/storage_service.dart';
 import '../../../../controllers/auth_controller.dart';
+import '../../../../controllers/dashboard_controller.dart';
+import '../../../../controllers/case_controller.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -135,10 +137,25 @@ class _SyncScreenState extends State<SyncScreen> {
                 const SizedBox(height: 32),
                 if (_isDone.value)
                   ElevatedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       if (_hasError.value) {
                          _startSync(); // Retry
                       } else {
+                         // ── تحديث كامل لكل البيانات من السيرفر بعد المزامنة ──
+                         Get.snackbar(
+                           'تحديث البيانات',
+                           'جاري تحديث البيانات من السيرفر...',
+                           duration: const Duration(seconds: 2),
+                           snackPosition: SnackPosition.BOTTOM,
+                         );
+                         try {
+                           if (Get.isRegistered<DashboardController>()) {
+                             await Get.find<DashboardController>().loadDashboard();
+                           }
+                           if (Get.isRegistered<CaseController>()) {
+                             await Get.find<CaseController>().fetchCases();
+                           }
+                         } catch (_) {}
                          Get.offAllNamed(AppRoutes.dashboard);
                       }
                     },

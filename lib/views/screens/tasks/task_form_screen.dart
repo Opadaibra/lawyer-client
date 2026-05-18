@@ -42,6 +42,8 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
           _dueDate = dueUtc.toLocal();
         }
       }
+    } else if (args?['case_id'] != null) {
+      _selectedCaseId = args!['case_id'] as int;
     } else if (args?['caseId'] != null) {
       _selectedCaseId = args!['caseId'] as int;
     }
@@ -132,7 +134,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                         value: null, child: Text('no_case_linked'.tr)),
                     ...cases.map((c) => DropdownMenuItem(
                           value: c.id,
-                          child: Text(c.caseNumber),
+                          child: Text('${c.clientName ?? ""} - ${c.caseNumber}'),
                         )),
                   ],
                   onChanged: (v) => setState(() => _selectedCaseId = v),

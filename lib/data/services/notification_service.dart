@@ -12,6 +12,7 @@ import '../models/case_model.dart';
 import '../models/minute_model.dart';
 import '../models/notification_model.dart';
 import '../models/task_model.dart';
+import '../models/sub_resource_models.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
 
@@ -193,49 +194,77 @@ class NotificationService {
     );
   }
 
-  static Future<void> scheduleDailyTaskReminder(List<TaskModel> tasks) async {
-    final nowLoc = tz.TZDateTime.now(tz.local);
-    var next8 = tz.TZDateTime(
-        tz.local, nowLoc.year, nowLoc.month, nowLoc.day, 8, 0);
-    if (!next8.isAfter(nowLoc)) {
-      next8 = next8.add(const Duration(days: 1));
+  static Future<void> scheduleDailyReminder(List<TaskModel> tasks, List<SessionModel> sessions) async {
+    // Cancel existing scheduled daily reminders to avoid duplicates or stale data
+    for (int i = 0; i < 7; i++) {
+      try {
+        await _plugin.cancel(888 + i);
+      } catch (_) {}
     }
 
-    final todayLocal = DateTime.now();
-    final tasksToday = tasks.where((t) {
-      if (t.dueDate == null || t.status == 'completed') return false;
-      final dueUtc = AppHelpers.dueInstantUtc(t.dueDate);
-      if (dueUtc == null) return false;
-      final dueLocal = dueUtc.toLocal();
-      return dueLocal.year == todayLocal.year &&
-          dueLocal.month == todayLocal.month &&
-          dueLocal.day == todayLocal.day;
-    }).toList();
+    final nowLoc = tz.TZDateTime.now(tz.local);
 
-    if (tasksToday.isEmpty) return;
+    for (int i = 0; i < 7; i++) {
+      final targetDate = DateTime.now().add(Duration(days: i));
+      
+      var scheduleTime = tz.TZDateTime(
+          tz.local, targetDate.year, targetDate.month, targetDate.day, 8, 0);
 
-    final body = 'لديك ${tasksToday.length} مهمة مجدولة لهذا اليوم.';
+      // If this scheduled time has already passed (e.g. it is 10:00 AM today and we are calculating for today), skip it
+      if (!scheduleTime.isAfter(nowLoc)) {
+        continue;
+      }
 
-    await _plugin.zonedSchedule(
-      888,
-      'تذكير الصباح',
-      body,
-      next8,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_reminder_channel',
-          'تذكير يومي',
-          channelDescription: 'ملخص المهام كل صباح',
-          importance: Importance.high,
-          priority: Priority.high,
+      final tasksToday = tasks.where((t) {
+        if (t.dueDate == null || t.status == 'completed') return false;
+        final dueUtc = AppHelpers.dueInstantUtc(t.dueDate);
+        if (dueUtc == null) return false;
+        final dueLocal = dueUtc.toLocal();
+        return dueLocal.year == targetDate.year &&
+            dueLocal.month == targetDate.month &&
+            dueLocal.day == targetDate.day;
+      }).length;
+
+      final sessionsToday = sessions.where((s) {
+        if (s.date.isEmpty) return false;
+        final d = DateTime.tryParse(s.date)?.toLocal();
+        if (d == null) return false;
+        return d.year == targetDate.year &&
+            d.month == targetDate.month &&
+            d.day == targetDate.day;
+      }).length;
+
+      if (tasksToday == 0 && sessionsToday == 0) continue;
+
+      String body = '';
+      if (tasksToday > 0 && sessionsToday > 0) {
+        body = 'لديك $tasksToday مهمة و $sessionsToday جلسة مجدولة لهذا اليوم.';
+      } else if (tasksToday > 0) {
+        body = 'لديك $tasksToday مهمة مجدولة لهذا اليوم.';
+      } else {
+        body = 'لديك $sessionsToday جلسة مجدولة لهذا اليوم.';
+      }
+
+      await _plugin.zonedSchedule(
+        888 + i,
+        'تذكير الصباح',
+        body,
+        scheduleTime,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'daily_reminder_channel',
+            'تذكير يومي',
+            channelDescription: 'ملخص المواعيد كل صباح',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
   }
 
   /// تذكيرات الجدولة المحلية فقط (بدون تخزين في قائمة الإشعارات — القائمة من السيرفر).
@@ -262,6 +291,29 @@ class NotificationService {
             'related_type': 'task',
             'related_id': task.id,
             'case_file_id': task.caseFileId,
+          }),
+        );
+      }
+    }
+  }
+
+  static Future<void> checkSessionReminders(List<SessionModel> sessions) async {
+    final nowUtc = DateTime.now().toUtc();
+
+    for (final session in sessions) {
+      if (session.date.isEmpty) continue;
+      final sessionUtc = AppHelpers.dueInstantUtc(session.date);
+      if (sessionUtc == null) continue;
+
+      if (sessionUtc.isAfter(nowUtc)) {
+        await scheduleNotification(
+          id: 1000000 + session.id, // Use a different base to avoid collision with tasks
+          title: 'موعد جلسة قادمة',
+          body: 'جلسة لقضية رقم: ${session.caseNumber ?? "غير معروف"}',
+          scheduledDate: sessionUtc,
+          payload: jsonEncode({
+            'related_type': 'case',
+            'related_id': session.caseId,
           }),
         );
       }

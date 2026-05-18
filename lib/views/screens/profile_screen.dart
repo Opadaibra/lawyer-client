@@ -86,6 +86,12 @@ class ProfileScreen extends StatelessWidget {
               },
             ),
             
+            _MenuTile(
+              icon: Icons.lock_outline,
+              label: 'change_password'.tr,
+              onTap: () => _showChangePasswordDialog(context, auth),
+            ),
+            
             const Divider(height: 32),
             
             _MenuTile(
@@ -142,6 +148,63 @@ class ProfileScreen extends StatelessWidget {
         ),
       ],
     ));
+  }
+
+  void _showChangePasswordDialog(BuildContext context, AuthController auth) {
+    final currentPass = TextEditingController();
+    final newPass = TextEditingController();
+    final confirmPass = TextEditingController();
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('change_password'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: currentPass,
+              obscureText: true,
+              decoration: InputDecoration(labelText: 'current_password'.tr),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: newPass,
+              obscureText: true,
+              decoration: InputDecoration(labelText: 'new_password'.tr),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: confirmPass,
+              obscureText: true,
+              decoration: InputDecoration(labelText: 'confirm_password'.tr),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+          Obx(() => ElevatedButton(
+            onPressed: auth.isLoading.value ? null : () async {
+              if (newPass.text != confirmPass.text) {
+                Get.snackbar('error'.tr, 'passwords_dont_match'.tr);
+                return;
+              }
+              final success = await auth.changePassword(
+                currentPassword: currentPass.text,
+                newPassword: newPass.text,
+                confirmPassword: confirmPass.text,
+              );
+              if (success) {
+                Get.back(); // إغلاق الديالوغ
+                Get.snackbar('success'.tr, 'password_changed_success'.tr);
+              }
+            },
+            child: auth.isLoading.value 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text('save'.tr),
+          )),
+        ],
+      ),
+    );
   }
 }
 

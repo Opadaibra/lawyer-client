@@ -21,6 +21,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.find<MinuteController>().fetchMinutes();
+      Get.find<CaseController>().fetchArchivedSessions();
+      Get.find<CaseController>().fetchArchivedCases();
+      Get.find<TaskController>().fetchArchivedTasks();
     });
   }
 
@@ -33,7 +36,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     final canMutate = auth.currentUser.value?.canMutateOfficeContent ?? true;
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: CustomAppBar(
           title: 'archive'.tr,
@@ -45,6 +48,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
               Tab(text: 'cases'.tr),
               Tab(text: 'tasks'.tr),
               Tab(text: 'minutes'.tr),
+              Tab(text: 'sessions'.tr),
             ],
           ),
         ),
@@ -53,6 +57,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             _buildCasesList(caseCtrl, canMutate),
             _buildTasksList(taskCtrl, canMutate),
             _buildMinutesList(minuteCtrl, canMutate),
+            _buildSessionsList(caseCtrl, canMutate),
           ],
         ),
       ),
@@ -61,7 +66,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
 
   Widget _buildCasesList(CaseController ctrl, bool canMutate) {
     return Obx(() {
-      final archived = ctrl.cases.where((c) => c.isArchived).toList();
+      final archived = ctrl.archivedCases;
       if (archived.isEmpty) return _buildEmptyState();
       return ListView.builder(
         padding: const EdgeInsets.all(16),
@@ -89,7 +94,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
 
   Widget _buildTasksList(TaskController ctrl, bool canMutate) {
     return Obx(() {
-      final archived = ctrl.tasks.where((t) => t.isArchived).toList();
+      final archived = ctrl.archivedTasks;
       if (archived.isEmpty) return _buildEmptyState();
       return ListView.builder(
         padding: const EdgeInsets.all(16),
@@ -140,6 +145,39 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
               onTap: () => canMutate
                   ? Get.toNamed(AppRoutes.minuteForm, arguments: {'minute': m})
                   : Get.toNamed(AppRoutes.minuteDetail, arguments: {'minute': m}),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildSessionsList(CaseController ctrl, bool canMutate) {
+    return Obx(() {
+      final archived = ctrl.archivedSessions;
+      if (archived.isEmpty) return _buildEmptyState();
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: archived.length,
+        itemBuilder: (_, i) {
+          final s = archived[i];
+          final caseLine = [
+            if (s.caseNumber != null && s.caseNumber!.isNotEmpty) s.caseNumber,
+            if (s.clientName != null && s.clientName!.isNotEmpty) s.clientName,
+          ].whereType<String>().join(' - ');
+
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.archive_outlined, color: Colors.grey),
+              title: Text(AppHelpers.formatDateTime(s.date)),
+              subtitle: Text(caseLine.isNotEmpty ? caseLine : '---'),
+              trailing: canMutate
+                  ? IconButton(
+                      icon: const Icon(Icons.unarchive_outlined),
+                      onPressed: () => ctrl.unarchiveSession(s.id, s.caseId),
+                    )
+                  : null,
+              onTap: () => Get.toNamed(AppRoutes.caseDetail, arguments: {'id': s.caseId}),
             ),
           );
         },

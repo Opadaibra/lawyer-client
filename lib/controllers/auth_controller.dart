@@ -236,6 +236,41 @@ class AuthController extends GetxController {
   }
 
   // ─── Refresh Token ────────────────────────────────────────────────────────
+  // ─── Change Password ──────────────────────────────────────────────────────
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    isLoading.value = true;
+    try {
+      final response = await _api.post(
+        AppConstants.changePassword,
+        data: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'confirm_password': confirmPassword,
+        },
+      );
+
+      final token = response['authorization']?['token'] as String?;
+      final refreshToken = response['authorization']?['refresh_token'] as String?;
+
+      if (token != null) {
+        await StorageService.setToken(token);
+        if (refreshToken != null) {
+          await StorageService.setRefreshToken(refreshToken);
+        }
+      }
+      return true;
+    } catch (e) {
+      Get.snackbar('error'.tr, e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   Future<bool> refreshToken() async {
     final oldRefreshToken = StorageService.getRefreshToken();
     if (oldRefreshToken == null) return false;

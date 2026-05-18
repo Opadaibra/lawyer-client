@@ -5,14 +5,75 @@ import '../../controllers/auth_controller.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/theme/app_theme.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../../core/utils/helpers.dart';
+import '../../data/models/task_model.dart';
+import '../../data/models/sub_resource_models.dart';
+import '../../app/app.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   static const List<String> syrianMonths = [
     'كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران',
     'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'
   ];
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> with RouteAware, WidgetsBindingObserver {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      try {
+        if (Get.isRegistered<DashboardController>()) {
+          Get.find<DashboardController>().refreshDashboard();
+        }
+      } catch (_) {}
+    }
+  }
+
+  @override
+  void didPopNext() {
+    try {
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
+    } catch (_) {}
+  }
+
+  void _scrollToTasks() {
+    Future.delayed(const Duration(milliseconds: 150), () {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +83,7 @@ class DashboardScreen extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () => dash.refreshDashboard(),
       child: SingleChildScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -85,8 +147,9 @@ class DashboardScreen extends StatelessWidget {
                       onDaySelected: (selectedDay, focusedDay) {
                         dash.selectedDay.value = selectedDay;
                         dash.focusedDay.value = focusedDay;
+                        _scrollToTasks();
                       },
-                      eventLoader: (day) => dash.filterTasksByDate(day),
+                      eventLoader: (day) => dash.filterItemsByDate(day),
                       calendarFormat: CalendarFormat.month,
                       rowHeight: 46,
                       calendarStyle: CalendarStyle(
@@ -100,7 +163,7 @@ class DashboardScreen extends StatelessWidget {
                         formatButtonVisible: false,
                         titleCentered: true,
                         titleTextFormatter: (date, locale) {
-                          return '${date.month} - ${syrianMonths[date.month - 1]}';
+                          return '${date.month} - ${DashboardScreen.syrianMonths[date.month - 1]}';
                         },
                       ),
                     )),
@@ -128,7 +191,7 @@ class DashboardScreen extends StatelessWidget {
                       onTap: () => Get.toNamed(AppRoutes.cases),
                     ),
                     _CompactStatCard(
-                      title: 'tasks'.tr,
+                      title: 'uncompleted_tasks'.tr,
                       value: dash.pendingTasks.value.toString(),
                       icon: Icons.assignment,
                       color: Colors.purple,
@@ -163,8 +226,8 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 8),
 
             Obx(() {
-              final filteredTasks = dash.filterTasksByDate(dash.selectedDay.value);
-              if (filteredTasks.isEmpty) {
+              final filteredItems = dash.filterItemsByDate(dash.selectedDay.value);
+              if (filteredItems.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(32),
                   width: double.infinity,
@@ -185,34 +248,65 @@ class DashboardScreen extends StatelessWidget {
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: filteredTasks.length,
+                itemCount: filteredItems.length,
                 itemBuilder: (context, index) {
-                  final task = filteredTasks[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: ListTile(
-                      onTap: () => Get.toNamed(AppRoutes.taskDetail, arguments: {'task': task}),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.assignment_outlined, color: AppTheme.accent),
-                      ),
-                      title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(task.caseNumber ?? 'task'.tr, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: dash.getStatusColor(task.status).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                  final item = filteredItems[index];
+                  if (item is TaskModel) {
+                    final task = item;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        onTap: () => Get.toNamed(AppRoutes.taskDetail, arguments: {'task': task}),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.assignment_outlined, color: AppTheme.accent),
                         ),
-                        child: Text(
-                          task.status.tr,
-                          style: TextStyle(color: dash.getStatusColor(task.status), fontSize: 12, fontWeight: FontWeight.bold),
+                        title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(task.clientName ?? task.caseNumber ?? 'task'.tr, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: dash.getStatusColor(task.status).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            task.status.tr,
+                            style: TextStyle(color: dash.getStatusColor(task.status), fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
-                    ),
-                  );
+                    );
+                  } else if (item is SessionModel) {
+                    final session = item;
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.red, width: 0.5)),
+                      child: ListTile(
+                        onTap: () => Get.toNamed(AppRoutes.caseDetail, arguments: {'id': session.caseId}),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.gavel, color: Colors.red),
+                        ),
+                        title: Text('جلسة: ${session.caseNumber ?? "بدون رقم"}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(session.clientName ?? 'موعد جلسة', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                            const SizedBox(height: 2),
+                            Text(
+                              AppHelpers.formatTimeOnly(session.date),
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox();
                 },
               );
             }),

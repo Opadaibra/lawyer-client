@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:get/get.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../controllers/task_controller.dart';
+import '../../../controllers/file_controller.dart';
 import '../../../data/models/task_model.dart';
+import '../../../data/models/file_model.dart';
+import '../../../data/services/api_service.dart';
 import '../../../app/routes/app_routes.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/helpers.dart';
@@ -70,6 +75,7 @@ class TaskDetailScreen extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 class _TaskDetailView extends StatelessWidget {
   final TaskModel task;
   final TaskController ctrl;
@@ -109,8 +115,7 @@ class _TaskDetailView extends StatelessWidget {
                 PopupMenuItem(
                     value: 'delete',
                     child: ListTile(
-                        leading:
-                            const Icon(Icons.delete_outline, color: Colors.red),
+                        leading: const Icon(Icons.delete_outline, color: Colors.red),
                         title: Text('delete'.tr,
                             style: const TextStyle(color: Colors.red)))),
               ],
@@ -133,6 +138,7 @@ class _TaskDetailView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Status Header ─────────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -155,22 +161,22 @@ class _TaskDetailView extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: statusColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       AppHelpers.taskStatusArabic(task.status),
-                      style:
-                          const TextStyle(color: Colors.white, fontSize: 12),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
+
+            // ── Detail Tiles ──────────────────────────────────────────
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -190,6 +196,8 @@ class _TaskDetailView extends StatelessWidget {
                 ),
               ),
             ),
+
+            // ── Description ───────────────────────────────────────────
             if (task.description != null && task.description!.isNotEmpty) ...[
               const SizedBox(height: 16),
               Card(
@@ -199,8 +207,10 @@ class _TaskDetailView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('task_description'.tr,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700)),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
                       Text(task.description!,
                           style: const TextStyle(height: 1.6)),
@@ -209,6 +219,12 @@ class _TaskDetailView extends StatelessWidget {
                 ),
               ),
             ],
+
+            // ── File Attachments ──────────────────────────────────────
+            const SizedBox(height: 16),
+            _TaskFilesSection(task: task, canMutate: canMutate),
+
+            // ── Complete Button ───────────────────────────────────────
             const SizedBox(height: 24),
             if (task.status != 'completed')
               SizedBox(
@@ -248,6 +264,272 @@ class _TaskDetailView extends StatelessWidget {
   }
 }
 
+// ── Task Files Section ────────────────────────────────────────────────────────
+class _TaskFilesSection extends StatefulWidget {
+  final TaskModel task;
+  final bool canMutate;
+  const _TaskFilesSection({required this.task, required this.canMutate});
+
+  @override
+  State<_TaskFilesSection> createState() => _TaskFilesSectionState();
+}
+
+class _TaskFilesSectionState extends State<_TaskFilesSection> {
+  final fileCtrl = Get.find<FileController>();
+  final _taskFiles = <FileModel>[].obs;
+  final _loaded = false.obs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTaskFiles();
+  }
+
+  Future<void> _loadTaskFiles() async {
+    try {
+      final api = ApiService();
+      final response = await api.getList('/files/by-task/${widget.task.id}');
+      
+      List<dynamic> list = [];
+      if (response is List) {
+        list = response;
+      } else if (response is Map) {
+        list = response['data'] as List? ?? response['files'] as List? ?? [];
+      }
+      
+      debugPrint('Loaded ${list.length} files for task ${widget.task.id}');
+      _taskFiles.value = list.map((e) {
+        try {
+          return FileModel.fromJson(Map<String, dynamic>.from(e));
+        } catch (err) {
+          debugPrint('Error parsing file item: $err');
+          return null;
+        }
+      }).whereType<FileModel>().toList();
+    } catch (e) {
+      debugPrint('Error loading task files: $e');
+    } finally {
+      _loaded.value = true;
+    }
+  }
+
+
+  Map<String, String> get _taskFields => {'task_id': widget.task.id.toString()};
+
+  void _showUploadOptions() {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text('upload_file'.tr,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _UploadOption(
+                  icon: Icons.camera_alt_outlined,
+                  label: 'الكاميرا',
+                  color: AppTheme.primary,
+                  onTap: () async {
+                    Get.back();
+                    final success = await fileCtrl.pickAndUploadFromCamera(extraFields: _taskFields);
+                    if (success) _loadTaskFiles();
+                  },
+                ),
+                _UploadOption(
+                  icon: Icons.photo_library_outlined,
+                  label: 'المعرض',
+                  color: Colors.purple,
+                  onTap: () async {
+                    Get.back();
+                    final success = await fileCtrl.pickAndUploadFromGallery(extraFields: _taskFields);
+                    if (success) _loadTaskFiles();
+                  },
+                ),
+                _UploadOption(
+                  icon: Icons.attach_file_outlined,
+                  label: 'ملف',
+                  color: Colors.orange,
+                  onTap: () async {
+                    Get.back();
+                    final success = await fileCtrl.pickAndUpload(extraFields: _taskFields);
+                    if (success) _loadTaskFiles();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.attach_file, color: AppTheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text('الملفات المرفقة',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                if (widget.canMutate)
+                  Obx(() => fileCtrl.isUploading.value
+                      ? const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.add_circle_outline,
+                              color: AppTheme.primary),
+                          tooltip: 'upload_file'.tr,
+                          onPressed: _showUploadOptions,
+                        )),
+              ],
+            ),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+
+            // File list
+            Obx(() {
+              if (!_loaded.value) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              
+              if (_taskFiles.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: Text(
+                      'لا توجد ملفات مرفقة بعد',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                  ),
+                );
+              }
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _taskFiles.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final f = _taskFiles[i];
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    onTap: () => _openFile(context, f),
+                    leading: Icon(
+                      AppHelpers.getFileIcon(f.displayName),
+                      color: AppTheme.primary,
+                    ),
+                    title: Text(
+                      f.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    subtitle: f.size != null
+                        ? Text(AppHelpers.formatFileSize(f.size!),
+                            style: const TextStyle(fontSize: 11))
+                        : null,
+                    trailing: widget.canMutate
+                        ? IconButton(
+                            icon: const Icon(Icons.delete_outline,
+                                color: Colors.red, size: 18),
+                            onPressed: () async {
+                              final del = await fileCtrl.deleteFile(f.id);
+                              if (del) _taskFiles.removeWhere((x) => x.id == f.id);
+                            },
+                          )
+                        : null,
+                  );
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ── Upload Option Widget ──────────────────────────────────────────────────────
+class _UploadOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _UploadOption({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Detail Tile ───────────────────────────────────────────────────────────────
 class _DetailTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -273,4 +555,16 @@ class _DetailTile extends StatelessWidget {
       ),
     );
   }
+}
+
+void _openFile(BuildContext context, FileModel file) async {
+  if (file.absoluteUrl != null) {
+    Get.toNamed('/file-viewer', arguments: {'file': file});
+    return;
+  }
+  if (file.localPath != null && File(file.localPath!).existsSync()) {
+    await OpenFilex.open(file.localPath!);
+    return;
+  }
+  Get.snackbar('خطأ', 'لا يوجد رابط أو مسار محلي للملف');
 }

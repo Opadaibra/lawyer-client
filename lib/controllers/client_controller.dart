@@ -24,7 +24,10 @@ class ClientController extends GetxController {
     try {
       final response = await _api.getList('${AppConstants.clients}/');
       final list = _parseList(response);
-      clients.value = list.map((e) => ClientModel.fromJson(e)).toList();
+      final clientList = list.map((e) => ClientModel.fromJson(e)).toList();
+      // ترتيب أبجدي (أ ← ي)
+      clientList.sort((a, b) => a.name.compareTo(b.name));
+      clients.value = clientList;
     } catch (e) {
       _showError(e);
     } finally {
@@ -157,7 +160,7 @@ class ClientController extends GetxController {
   Future<bool> changePassword(int clientId, String password, String confirmation) async {
     isSubmitting.value = true;
     try {
-      final response = await _api.put('/clients/$clientId/change-password', data: {
+      await _api.put('/clients/$clientId/change-password', data: {
         'password': password,
         'password_confirmation': confirmation,
       });
