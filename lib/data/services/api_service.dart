@@ -32,7 +32,7 @@ class ApiService {
 
   void _handleError(http.Response response) {
     if (response.statusCode == 401) {
-      throw Exception('دخول غير مصرح به');
+      throw const SocketException('دخول غير مصرح به (تم التحويل تلقائياً لوضع عدم الاتصال)');
     }
     // 5xx: سيتم معالجتها في catch block وإضافتها للقائمة صامتاً
     if (response.statusCode >= 500) {
@@ -71,10 +71,11 @@ class ApiService {
         message = body['error'].toString();
       }
 
-      if (message.toLowerCase().contains('unauthenticated'))
-        message = 'يرجى تسجيل الدخول للمتابعة';
-      if (message.toLowerCase().contains('token expired'))
-        message = 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً';
+      if (message.toLowerCase().contains('unauthenticated') ||
+          message.toLowerCase().contains('token expired') ||
+          message.contains('انتهت صلاحية الجلسة')) {
+        throw SocketException(message);
+      }
 
       throw Exception(message);
     }
@@ -150,8 +151,8 @@ class ApiService {
         if (success) {
           return await requestFn();
         } else {
-          throw Exception(
-              'انتهت الجلسة، يرجى تسجيل الخروج والدخول مجدداً أو العمل في وضع عدم الاتصال');
+          throw const SocketException(
+              'تعذر الاتصال بالخادم، تم التحويل تلقائياً لوضع عدم الاتصال المؤقت');
         }
       }
 
@@ -344,7 +345,9 @@ class ApiService {
                  }
                  OfflineSyncService.cacheResponse('/cases/$caseId/sessions', listCache);
              }
-             await OfflineSyncService.appendToCacheList('/cases/$caseId/sessions', mockItem);
+             if (!endpoint.contains('/cases/$caseId/sessions')) {
+                 await OfflineSyncService.appendToCacheList('/cases/$caseId/sessions', mockItem);
+             }
 
              var archivedCache = OfflineSyncService.getCachedResponse('/cases/all-sessions?archived=true');
              List<dynamic>? archivedList;
@@ -448,7 +451,8 @@ class ApiService {
       if (!isSyncCall &&
           !endpoint.contains(AppConstants.login) &&
           !endpoint.contains(AppConstants.register) &&
-          !endpoint.contains(AppConstants.changePassword)) {
+          !endpoint.contains(AppConstants.changePassword) &&
+          !endpoint.contains(AppConstants.refresh)) {
         final tempId = OfflineSyncService.generateTempId();
         await OfflineSyncService.queueAction(
             method: 'POST', endpoint: endpoint, data: data, tempId: tempId);
@@ -486,7 +490,9 @@ class ApiService {
                    }
                    OfflineSyncService.cacheResponse('/cases/$caseId/sessions', listCache);
                }
-               await OfflineSyncService.appendToCacheList('/cases/$caseId/sessions', mockItem);
+               if (!endpoint.contains('/cases/$caseId/sessions')) {
+                   await OfflineSyncService.appendToCacheList('/cases/$caseId/sessions', mockItem);
+               }
 
                var archivedCache = OfflineSyncService.getCachedResponse('/cases/all-sessions?archived=true');
                List<dynamic>? archivedList;
@@ -609,7 +615,8 @@ class ApiService {
       if (!isSyncCall &&
           !endpoint.contains(AppConstants.login) &&
           !endpoint.contains(AppConstants.register) &&
-          !endpoint.contains(AppConstants.changePassword)) {
+          !endpoint.contains(AppConstants.changePassword) &&
+          !endpoint.contains(AppConstants.refresh)) {
         await OfflineSyncService.queueAction(
             method: 'PATCH', endpoint: endpoint, data: requestData);
         return {'message': 'تم التعديل محلياً', 'status': 'success'};
@@ -644,7 +651,8 @@ class ApiService {
       if (!isSyncCall &&
           !endpoint.contains(AppConstants.login) &&
           !endpoint.contains(AppConstants.register) &&
-          !endpoint.contains(AppConstants.changePassword)) {
+          !endpoint.contains(AppConstants.changePassword) &&
+          !endpoint.contains(AppConstants.refresh)) {
         await OfflineSyncService.queueAction(
             method: 'PUT', endpoint: endpoint, data: requestData);
         return {'message': 'تم التعديل محلياً', 'status': 'success'};
@@ -673,7 +681,8 @@ class ApiService {
       if (!isSyncCall &&
           !endpoint.contains(AppConstants.login) &&
           !endpoint.contains(AppConstants.register) &&
-          !endpoint.contains(AppConstants.changePassword)) {
+          !endpoint.contains(AppConstants.changePassword) &&
+          !endpoint.contains(AppConstants.refresh)) {
         await OfflineSyncService.queueAction(
             method: 'DELETE', endpoint: endpoint);
         _removeItemFromListCaches(endpoint);
@@ -755,7 +764,8 @@ class ApiService {
       if (!isSyncCall &&
           !endpoint.contains(AppConstants.login) &&
           !endpoint.contains(AppConstants.register) &&
-          !endpoint.contains(AppConstants.changePassword)) {
+          !endpoint.contains(AppConstants.changePassword) &&
+          !endpoint.contains(AppConstants.refresh)) {
         final tempId = OfflineSyncService.generateTempId();
         await OfflineSyncService.queueAction(
           method: 'UPLOAD',

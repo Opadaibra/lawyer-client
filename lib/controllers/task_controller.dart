@@ -7,6 +7,7 @@ import '../../core/utils/helpers.dart';
 import 'auth_controller.dart';
 import 'case_controller.dart';
 import 'notification_controller.dart';
+import 'dashboard_controller.dart';
 
 class TaskController extends GetxController {
   final ApiService _api = ApiService();
@@ -133,6 +134,9 @@ class TaskController extends GetxController {
         }
       }
       await fetchTasks();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('task_created'.tr);
       return true;
@@ -149,6 +153,9 @@ class TaskController extends GetxController {
     try {
       await _api.patch('${AppConstants.tasks}/$id', data: task.toCreateJson());
       await fetchTasks();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('task_updated'.tr);
       return true;
@@ -170,6 +177,9 @@ class TaskController extends GetxController {
         'status': 'completed',
       });
       await fetchTasks();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('task_completed'.tr);
       return true;
     } catch (e) {
@@ -182,6 +192,9 @@ class TaskController extends GetxController {
     try {
       await _api.delete('${AppConstants.tasks}/$id');
       tasks.removeWhere((t) => t.id == id);
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('task_deleted'.tr);
       return true;
     } catch (e) {
@@ -195,6 +208,9 @@ class TaskController extends GetxController {
       await _api.post('${AppConstants.tasks}/$id/archive');
       await fetchTasks();
       await fetchArchivedTasks();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('task_archived'.tr);
     } catch (e) {
       _showError(e);
@@ -206,6 +222,9 @@ class TaskController extends GetxController {
       await _api.post('${AppConstants.tasks}/$id/unarchive');
       await fetchTasks();
       await fetchArchivedTasks();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('task_unarchived'.tr);
     } catch (e) {
       _showError(e);

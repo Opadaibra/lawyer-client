@@ -46,8 +46,8 @@ class TeamScreen extends StatelessWidget {
                   title: Text(member['name']?.toString() ?? 'بدون اسم',
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${member['email']}\nالصفة: ${roleKey.tr}'),
-                  trailing: (auth.currentUser.value?.id?.toString() != member['id']?.toString() && 
-                       ['MANAGER', 'LAWYER'].contains(auth.currentUser.value?.role?.toUpperCase()))
+                  trailing: (auth.currentUser.value?.id?.toString() != member['id']?.toString() &&
+                       auth.currentUser.value?.role?.toUpperCase() == 'MANAGER')
                           ? PopupMenuButton<String>(
                               onSelected: (value) {
                                 final memberId = int.tryParse(member['id'].toString());
@@ -65,6 +65,7 @@ class TeamScreen extends StatelessWidget {
                                   value: 'edit',
                                   child: Row(children: [Icon(Icons.edit, size: 20), SizedBox(width: 8), Text('تعديل')]),
                                 ),
+                                // تغيير كلمة المرور للمدير فقط
                                 const PopupMenuItem(
                                   value: 'password',
                                   child: Row(children: [Icon(Icons.lock_reset, size: 20), SizedBox(width: 8), Text('تغيير كلمة المرور')]),
@@ -84,8 +85,8 @@ class TeamScreen extends StatelessWidget {
       }),
       floatingActionButton: Obx(() {
         final user = auth.currentUser.value;
-        // Default to showing it if loading, or if they have permission
-        if (user != null && !user.canMutateOfficeContent) return const SizedBox();
+        // فقط المدير يستطيع إضافة أعضاء
+        if (user == null || user.role?.toUpperCase() != 'MANAGER') return const SizedBox();
         return FloatingActionButton(
           heroTag: 'team_fab',
           onPressed: () => _showAddMemberDialog(context, ctrl),

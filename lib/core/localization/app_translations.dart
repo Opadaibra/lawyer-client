@@ -167,6 +167,7 @@ class AppTranslations extends Translations {
           // ── الجلسات والسجلات ──────────────────────────────
           'sessions': 'الجلسات',
           'no_sessions': 'لا توجد جلسات مسجّلة',
+          'past_sessions': 'الجلسات الفائتة',
           'add_session': 'إضافة جلسة',
           'add_note': 'إضافة ملاحظة',
           'add_expense': 'إضافة مصروف',
@@ -186,14 +187,14 @@ class AppTranslations extends Translations {
           'pending': 'قائمة',
           'suspended': 'معلقة',
           'in_progress': 'جارية',
-          'completed': 'مكتملة',
+          'completed': 'فصلت',
           'overdue': 'متأخرة',
           'postpone': 'ترحيل الجلسة',
           'transfer': 'ترحيل',
           'new_date': 'التاريخ الجديد',
           'postpone_success': 'تم ترحيل الجلسة بنجاح',
           'open': 'مفتوحة',
-          'closed': 'مغلقة',
+          'closed': 'فصلت',
           'unarchive': 'إلغاء الأرشفة',
 
           // ── المهام ────────────────────────────────────────

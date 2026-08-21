@@ -125,7 +125,7 @@ class AppHelpers {
       case 'in_progress':
         return 'جارية';
       case 'completed':
-        return 'مكتملة';
+        return 'فصلت';
       case 'overdue':
         return 'متأخرة';
       default:
@@ -140,15 +140,15 @@ class AppHelpers {
       case 'open':
         return 'Open / مفتوحة';
       case 'closed':
-        return 'Closed / مغلقة';
+        return 'Closed / فصلت';
       case 'pending':
-        return 'Pending / معلقة';
+        return 'Pending / قائمة';
       case 'archived':
         return 'Archived / مؤرشفة';
       case 'in_progress':
         return 'In Progress / جارية';
       case 'completed':
-        return 'Completed / مكتملة';
+        return 'Completed / فصلت';
       case 'overdue':
         return 'Overdue / متأخرة';
       default:

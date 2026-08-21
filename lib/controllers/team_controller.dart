@@ -79,6 +79,13 @@ class TeamController extends GetxController {
           snackPosition: SnackPosition.BOTTOM);
       return false;
     }
+    // فقط المدير يمكنه تعديل بيانات الأعضاء
+    final u = Get.find<AuthController>().currentUser.value;
+    if (u?.role?.toUpperCase() != 'MANAGER') {
+      Get.snackbar('error'.tr, 'صلاحية تعديل بيانات الفريق متاحة للمدير فقط',
+          snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
     isSubmitting.value = true;
     try {
       final data = <String, dynamic>{};
@@ -103,6 +110,13 @@ class TeamController extends GetxController {
           snackPosition: SnackPosition.BOTTOM);
       return false;
     }
+    // فقط المدير يمكنه تغيير كلمة مرور أعضاء الفريق
+    final u = Get.find<AuthController>().currentUser.value;
+    if (u?.role?.toUpperCase() != 'MANAGER') {
+      Get.snackbar('error'.tr, 'صلاحية تغيير كلمة المرور متاحة للمدير فقط',
+          snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
     isSubmitting.value = true;
     try {
       await _api.put('${AppConstants.team}/$id/change-password', data: {
@@ -122,6 +136,13 @@ class TeamController extends GetxController {
   Future<bool> removeMember(int id) async {
     if (StorageService.isOfflineMode()) {
       Get.snackbar('error'.tr, 'لا يمكن حذف عضو من الفريق في وضع عدم الاتصال',
+          snackPosition: SnackPosition.BOTTOM);
+      return false;
+    }
+    // فقط المدير يمكنه حذف أعضاء الفريق
+    final u = Get.find<AuthController>().currentUser.value;
+    if (u?.role?.toUpperCase() != 'MANAGER') {
+      Get.snackbar('error'.tr, 'صلاحية حذف الأعضاء متاحة للمدير فقط',
           snackPosition: SnackPosition.BOTTOM);
       return false;
     }

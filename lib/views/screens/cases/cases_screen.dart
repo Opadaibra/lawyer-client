@@ -103,6 +103,7 @@ class CasesScreen extends StatelessWidget {
                           ),
                         ),
                         Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -113,7 +114,7 @@ class CasesScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                c.status,
+                                c.status.tr,
                                 style: TextStyle(
                                   color: AppTheme.getStatusColor(c.status),
                                   fontSize: 11,
@@ -121,8 +122,32 @@ class CasesScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 4),
+                            if (canMutate && c.status != 'closed') ...[
+                              GestureDetector(
+                                onTap: () => _confirmMarkClosed(ctrl, c.id),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.red.withOpacity(0.5)),
+                                  ),
+                                  child: const Text(
+                                    'فصلت',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                             if (canMutate) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               PopupMenuButton(
                                 icon: const Icon(Icons.more_vert,
                                     size: 18, color: Colors.grey),
@@ -230,6 +255,24 @@ class CasesScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _confirmMarkClosed(CaseController ctrl, int id) {
+    Get.dialog(AlertDialog(
+      title: const Text('تأكيد - فصلت'),
+      content: const Text('هل تريد تحديث حالة هذه الدعوى إلى "فصلت"؟'),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+        ElevatedButton(
+          onPressed: () {
+            Get.back();
+            ctrl.markAsClosed(id);
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('فصلت'),
+        ),
+      ],
+    ));
   }
 
   void _confirmDelete(CaseController ctrl, int id) {

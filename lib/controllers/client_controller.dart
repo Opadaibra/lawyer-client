@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../../data/services/api_service.dart';
 import '../../data/models/client_model.dart';
 import '../../core/constants/app_constants.dart';
+import 'dashboard_controller.dart';
 
 class ClientController extends GetxController {
   final ApiService _api = ApiService();
@@ -75,6 +76,9 @@ class ClientController extends GetxController {
       final data = _extractData(response);
       final newClient = ClientModel.fromJson(data);
       await fetchClients();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('Client added successfully / تم إضافة الموكل');
       return newClient.id;
@@ -92,6 +96,9 @@ class ClientController extends GetxController {
     try {
       await _api.patch('${AppConstants.clients}/$id', data: client.toCreateJson());
       await fetchClients();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('Client updated successfully / تم تحديث الموكل');
       return true;
@@ -108,6 +115,9 @@ class ClientController extends GetxController {
     try {
       await _api.delete('${AppConstants.clients}/$id');
       clients.removeWhere((c) => c.id == id);
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('Client deleted / تم حذف الموكل');
       return true;
     } catch (e) {

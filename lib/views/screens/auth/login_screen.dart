@@ -4,7 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
-
+import '../../../core/config/app_config.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -180,16 +180,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   )).animate().fadeIn(delay: 400.ms),
 
-                              const SizedBox(height: 16),
-                              Center(
-                                child: TextButton.icon(
-                                  onPressed: () => Get.find<AuthController>()
-                                      .enterOfflineMode(),
-                                  icon: const Icon(Icons.wifi_off),
-                                  label: const Text(
-                                      'الدخول بدون إنترنت (أوفلاين)'),
-                                ),
-                              ).animate().fadeIn(delay: 500.ms),
+                              if (!AppConfig.requireOnlineLogin) ...[
+                                const SizedBox(height: 16),
+                                Center(
+                                  child: TextButton.icon(
+                                    onPressed: () => Get.find<AuthController>()
+                                        .enterOfflineMode(),
+                                    icon: const Icon(Icons.wifi_off),
+                                    label: const Text(
+                                        'الدخول بدون إنترنت (أوفلاين)'),
+                                  ),
+                                ).animate().fadeIn(delay: 500.ms),
+                              ],
                             ],
                           ),
                         ),

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:lawyer_client/controllers/case_controller.dart';
 
 import '../../../app/routes/app_routes.dart';
+
 import '../../../controllers/dashboard_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/helpers.dart';
@@ -189,7 +190,6 @@ class _SessionCard extends StatelessWidget {
     final dateCtrl = TextEditingController();
     final decisionCtrl = TextEditingController();
     final caseCtrl = Get.find<CaseController>();
-    final dash = Get.find<DashboardController>();
 
     Get.dialog(AlertDialog(
       title: Text('postpone'.tr),
@@ -207,7 +207,7 @@ class _SessionCard extends StatelessWidget {
               onTap: () async {
                 final date = await showDatePicker(
                   context: context,
-                  initialDate: DateTime.now().add(const Duration(days: 1)),
+                  initialDate: DateTime.now(),
                   firstDate: DateTime.now(),
                   lastDate: DateTime(2030),
                 );
@@ -263,8 +263,8 @@ class _SessionCard extends StatelessWidget {
                     'new_date': dateCtrl.text,
                     'decisions': decisionCtrl.text,
                   });
+                  // ملاحظة: postponeSession يستدعي refreshDashboard من الداخل - لا حاجة لاستدعائه مرة ثانية
                   if (success) {
-                    dash.refreshDashboard();
                     Get.snackbar(
                       'success'.tr,
                       'postpone_success'.tr,

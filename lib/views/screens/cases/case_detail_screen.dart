@@ -88,6 +88,17 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
                 onPressed: () => Get.toNamed(AppRoutes.files, arguments: {'caseId': actualCase.id}),
               ),
               if (canMutate) ...[
+                // زر سريع "فصلت" - يظهر فقط إذا لم تكن القضية مغلقة
+                if (actualCase.status != 'closed')
+                  TextButton(
+                    onPressed: () => _confirmMarkClosed(caseCtrl, actualCase.id),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade300,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text('فصلت',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   onPressed: () => Get.toNamed(AppRoutes.caseForm, arguments: {'case': actualCase}),
@@ -316,6 +327,24 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
     );
   }
 
+  void _confirmMarkClosed(CaseController ctrl, int id) {
+    Get.dialog(AlertDialog(
+      title: const Text('تأكيد - فصلت'),
+      content: const Text('هل تريد تحديث حالة هذه الدعوى إلى "فصلت"؟'),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+        ElevatedButton(
+          onPressed: () {
+            Get.back();
+            ctrl.markAsClosed(id);
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('فصلت'),
+        ),
+      ],
+    ));
+  }
+
   void _confirmDelete(CaseController ctrl, int id) {
     Get.dialog(AlertDialog(
       title: Text('delete_case'.tr),
@@ -461,7 +490,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               onTap: () async {
                 final date = await showDatePicker(
                   context: context,
-                  initialDate: DateTime.now().add(const Duration(days: 1)),
+                  initialDate: DateTime.now(),
                   firstDate: DateTime.now(),
                   lastDate: DateTime(2030),
                 );

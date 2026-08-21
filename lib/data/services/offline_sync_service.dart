@@ -171,7 +171,15 @@ class OfflineSyncService {
 
   // --- Synchronization Execution ---
   static Future<bool> syncData(Function(String) onProgress) async {
-    final queue = getSyncQueue();
+    // تنظيف تلقائي لأي عناصر قديمة للمصادقة/الرفرش قد تكون علقت في كاش طابور المستخدم
+    final rawQueue = getSyncQueue();
+    final queue = rawQueue.where((item) => !item['endpoint'].toString().contains('refresh')).toList();
+    if (rawQueue.length != queue.length) {
+      final prefs = StorageService.prefs;
+      await prefs.setString(_syncQueueKey, jsonEncode(queue));
+      print('Cleaned up ${rawQueue.length - queue.length} stale refresh items from persistent queue.');
+    }
+
     if (queue.isEmpty) {
       onProgress("لا يوجد بيانات للمزامنة");
       return true;
@@ -365,7 +373,8 @@ class OfflineSyncService {
           print('Item synced and removed from queue');
         } catch (e) {
           print('Error syncing item $method $endpoint: $e');
-          syncErrors.add('$typeName ${entityName.isNotEmpty ? "($entityName)" : ""}');
+          final cleanErr = e.toString().replaceAll('Exception: ', '');
+          syncErrors.add('$typeName ${entityName.isNotEmpty ? "($entityName)" : ""} ($cleanErr)');
           // continue to next item
         }
       }
@@ -411,6 +420,7 @@ class OfflineSyncService {
       return tryGet(response['data']['id']);
     }
     for (var key in [
+      'case_file',
       'case',
       'client',
       'task',

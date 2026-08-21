@@ -7,6 +7,9 @@ import '../../data/models/task_model.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/services/notification_service.dart';
 import '../../core/utils/helpers.dart';
+import '../../core/config/app_config.dart';
+import '../../data/services/storage_service.dart';
+import 'auth_controller.dart';
 
 class DashboardController extends GetxController {
   final ApiService _api = ApiService();
@@ -23,13 +26,40 @@ class DashboardController extends GetxController {
   final allTasks = <TaskModel>[].obs;
   /// جلسات من `GET /cases/all-sessions`
   final allSessions = <SessionModel>[].obs;
+
+  List<SessionModel> get pastSessions {
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return allSessions.where((session) {
+      if (session.isArchived) return false;
+      if (session.date.isEmpty) return false;
+      final d = DateTime.tryParse(session.date)?.toLocal();
+      if (d == null) return false;
+      final sessionDay = DateTime(d.year, d.month, d.day);
+      return sessionDay.isBefore(today);
+    }).toList();
+  }
+
   final focusedDay = DateTime.now().obs;
   final selectedDay = DateTime.now().obs;
 
   @override
   void onInit() {
     super.onInit();
+    if (AppConfig.requireOnlineLogin && StorageService.getToken() != 'offline') {
+      _verifyUserActive();
+    }
     loadDashboard();
+  }
+
+  Future<void> _verifyUserActive() async {
+    try {
+      await _api.getList('/cases?limit=1');
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('401') || msg.contains('unauthorized') || msg.contains('unauthenticated') || msg.contains('انتهت صلاحية')) {
+         Get.find<AuthController>().logout();
+      }
+    }
   }
 
   Future<void> refreshDashboard() => loadDashboard();

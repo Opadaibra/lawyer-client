@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/case_controller.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/theme/app_theme.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -145,41 +146,114 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware, Widg
                       ),
                     ),
                     const Divider(height: 1),
-                    Obx(() => TableCalendar(
-                      locale: 'ar',
-                      firstDay: DateTime.utc(2024, 1, 1),
-                      lastDay: DateTime.utc(2030, 12, 31),
-                      focusedDay: dash.focusedDay.value,
-                      selectedDayPredicate: (day) => isSameDay(dash.selectedDay.value, day),
-                      onDaySelected: (selectedDay, focusedDay) {
-                        dash.selectedDay.value = selectedDay;
-                        dash.focusedDay.value = focusedDay;
-                        _scrollToTasks();
-                      },
-                      eventLoader: (day) => dash.filterItemsByDate(day),
-                      calendarFormat: CalendarFormat.month,
-                      rowHeight: 46,
-                      calendarStyle: CalendarStyle(
-                        outsideDaysVisible: true,
-                        cellMargin: const EdgeInsets.all(4),
-                        todayDecoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.2), shape: BoxShape.circle),
-                        selectedDecoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
-                        markerDecoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
-                      ),
-                      headerStyle: HeaderStyle(
-                        formatButtonVisible: false,
-                        titleCentered: true,
-                        titleTextFormatter: (date, locale) {
-                          return '${date.month} - ${DashboardScreen.syrianMonths[date.month - 1]}';
+                    Obx(() {
+                      // Accessing these variables inside Obx ensures the calendar rebuilds when data changes
+                      final _ = dash.allSessions.length;
+                      final __ = dash.allTasks.length;
+                      return TableCalendar(
+                        locale: 'ar',
+                        firstDay: DateTime.utc(2024, 1, 1),
+                        lastDay: DateTime.utc(2030, 12, 31),
+                        focusedDay: dash.focusedDay.value,
+                        selectedDayPredicate: (day) => isSameDay(dash.selectedDay.value, day),
+                        onDaySelected: (selectedDay, focusedDay) {
+                          dash.selectedDay.value = selectedDay;
+                          dash.focusedDay.value = focusedDay;
+                          _scrollToTasks();
                         },
-                      ),
-                    )),
+                        eventLoader: (day) => dash.filterItemsByDate(day),
+                        calendarFormat: CalendarFormat.month,
+                        rowHeight: 46,
+                        calendarStyle: CalendarStyle(
+                          outsideDaysVisible: true,
+                          cellMargin: const EdgeInsets.all(4),
+                          todayDecoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.2), shape: BoxShape.circle),
+                          selectedDecoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
+                          markerDecoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
+                        ),
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          titleTextFormatter: (date, locale) {
+                            return '${date.month} - ${DashboardScreen.syrianMonths[date.month - 1]}';
+                          },
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
             ),
 
             const SizedBox(height: 20),
+
+            // Past Sessions Section
+            Obx(() {
+              final past = dash.pastSessions;
+              if (past.isEmpty) return const SizedBox();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'past_sessions'.tr,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: past.length,
+                    itemBuilder: (context, index) {
+                      final session = past[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Colors.redAccent, width: 0.5),
+                        ),
+                        child: ListTile(
+                          onTap: () => Get.toNamed(AppRoutes.caseDetail, arguments: {'id': session.caseId}),
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                            child: const Icon(Icons.gavel, color: Colors.red),
+                          ),
+                          title: Text('جلسة: ${session.caseNumber ?? "بدون رقم"}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(session.clientName ?? 'موعد جلسة', maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 4),
+                              Text(
+                                AppHelpers.formatDateTime(session.date),
+                                style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                          trailing: TextButton.icon(
+                            onPressed: () => _showPostponeDialog(context, session),
+                            icon: const Icon(Icons.forward, size: 16),
+                            label: Text('transfer'.tr, style: const TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.blue,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              );
+            }),
 
             // Statistics Section
             Obx(() => GridView.count(
@@ -233,6 +307,9 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware, Widg
             const SizedBox(height: 8),
 
             Obx(() {
+              // Accessing these variables inside Obx ensures the list rebuilds when data changes
+              final _ = dash.allSessions.length;
+              final __ = dash.allTasks.length;
               final filteredItems = dash.filterItemsByDate(dash.selectedDay.value);
               if (filteredItems.isEmpty) {
                 return Container(
@@ -321,6 +398,98 @@ class _DashboardScreenState extends State<DashboardScreen> with RouteAware, Widg
         ),
       ),
     );
+  }
+
+  void _showPostponeDialog(BuildContext context, SessionModel s) {
+    final dateCtrl = TextEditingController();
+    final decisionCtrl = TextEditingController();
+    final caseCtrl = Get.find<CaseController>();
+
+    Get.dialog(AlertDialog(
+      title: Text('postpone'.tr),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          StatefulBuilder(
+            builder: (context, setState) => TextField(
+              controller: dateCtrl,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'new_date'.tr,
+                suffixIcon: const Icon(Icons.calendar_month),
+              ),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: const TimeOfDay(hour: 9, minute: 0),
+                  );
+                  if (time != null) {
+                    final combined = DateTime(date.year, date.month, date.day,
+                            time.hour, time.minute)
+                        .toUtc();
+                    setState(() => dateCtrl.text = combined
+                        .toIso8601String()
+                        .replaceFirst('T', ' ')
+                        .substring(0, 19));
+                  }
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: decisionCtrl,
+            decoration: InputDecoration(
+              labelText: 'decisions'.tr,
+              hintText: 'ماذا قررت المحكمة في هذه الجلسة؟',
+            ),
+            maxLines: 3,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: Get.back, child: Text('cancel'.tr)),
+        Obx(() => caseCtrl.isSubmitting.value
+            ? const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : ElevatedButton(
+                onPressed: () async {
+                  if (dateCtrl.text.isEmpty) {
+                    Get.snackbar('error'.tr, 'يرجى اختيار التاريخ الجديد');
+                    return;
+                  }
+                  // أغلق الديالوغ فوراً قبل أي عملية أخرى
+                  Get.back();
+                  final success = await caseCtrl.postponeSession(s.id, s.caseId, {
+                    'new_date': dateCtrl.text,
+                    'decisions': decisionCtrl.text,
+                  });
+                  // ملاحظة: postponeSession يستدعي refreshDashboard من الداخل - لا حاجة لاستدعائه مرة ثانية
+                  if (success) {
+                    Get.snackbar(
+                      'success'.tr,
+                      'postpone_success'.tr,
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  }
+                },
+                child: Text('transfer'.tr),
+              )),
+      ],
+    ));
   }
 }
 

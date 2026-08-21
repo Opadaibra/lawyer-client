@@ -75,6 +75,9 @@ class CaseController extends GetxController {
       }
 
       await fetchCases();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('case_created'.tr);
       return true;
@@ -93,6 +96,9 @@ class CaseController extends GetxController {
       await _api.patch('${AppConstants.cases}/$id',
           data: caseModel.toCreateJson());
       await fetchCases();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('case_updated'.tr);
       return true;
@@ -109,7 +115,31 @@ class CaseController extends GetxController {
     try {
       await _api.delete('${AppConstants.cases}/$id');
       cases.removeWhere((c) => c.id == id);
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('case_deleted'.tr);
+      return true;
+    } catch (e) {
+      _showError(e);
+      return false;
+    }
+  }
+
+  // ─── Mark case as closed (فصلت) ────────────────────────────────
+  Future<bool> markAsClosed(int id) async {
+    try {
+      // جلب بيانات القضية الحالية
+      final caseModel = cases.firstWhereOrNull((c) => c.id == id) ??
+          selectedCase.value;
+      if (caseModel == null) return false;
+      await _api.patch('${AppConstants.cases}/$id',
+          data: {...caseModel.toCreateJson(), 'status': 'closed'});
+      await fetchCases();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
+      _showSuccess('تمّ تحديث حالة القضية إلى فصلت');
       return true;
     } catch (e) {
       _showError(e);
@@ -134,6 +164,9 @@ class CaseController extends GetxController {
       await _api.post('${AppConstants.cases}/$id/archive');
       await fetchCases();
       await fetchArchivedCases();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('case_archived'.tr);
     } catch (e) {
       _showError(e);
@@ -145,6 +178,9 @@ class CaseController extends GetxController {
       await _api.post('${AppConstants.cases}/$id/unarchive');
       await fetchCases();
       await fetchArchivedCases();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('case_unarchived'.tr);
     } catch (e) {
       _showError(e);
@@ -180,7 +216,7 @@ class CaseController extends GetxController {
       await _api.post('${AppConstants.cases}/$caseId/sessions', data: data);
       await fetchSessions(caseId);
       if (Get.isRegistered<DashboardController>()) {
-        Get.find<DashboardController>().reloadAllSessions();
+        Get.find<DashboardController>().refreshDashboard();
       }
       return true;
     } catch (e) {
@@ -202,7 +238,7 @@ class CaseController extends GetxController {
       if (Get.isRegistered<DashboardController>()) {
         Get.find<DashboardController>().allSessions
             .removeWhere((s) => s.id == id);
-        Get.find<DashboardController>().reloadAllSessions();
+        Get.find<DashboardController>().refreshDashboard();
       }
       _showSuccess('session_deleted'.tr);
     } catch (e) {
@@ -218,7 +254,7 @@ class CaseController extends GetxController {
       await _api.post('/sessions/$sessionId/postpone', data: data);
       await fetchSessions(caseId);
       if (Get.isRegistered<DashboardController>()) {
-        await Get.find<DashboardController>().reloadAllSessions();
+        await Get.find<DashboardController>().refreshDashboard();
       }
       return true;
     } catch (e) {
@@ -247,6 +283,9 @@ class CaseController extends GetxController {
       await _api.post('/sessions/$id/archive');
       await fetchSessions(caseId);
       await fetchArchivedSessions();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('session_archived'.tr);
     } catch (e) {
       _showError(e);
@@ -258,6 +297,9 @@ class CaseController extends GetxController {
       await _api.post('/sessions/$id/unarchive');
       await fetchSessions(caseId);
       await fetchArchivedSessions();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('session_unarchived'.tr);
     } catch (e) {
       _showError(e);

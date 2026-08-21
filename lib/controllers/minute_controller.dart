@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../../data/services/api_service.dart';
 import '../../data/models/minute_model.dart';
 import '../../core/constants/app_constants.dart';
+import 'dashboard_controller.dart';
 
 class MinuteController extends GetxController {
   final ApiService _api = ApiService();
@@ -152,6 +153,9 @@ class MinuteController extends GetxController {
       }
 
       await _reloadMinutesList();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('تم إضافة الضبط');
       return true;
@@ -168,6 +172,9 @@ class MinuteController extends GetxController {
     try {
       await _api.patch('${AppConstants.minutes}/$id', data: minute.toCreateJson());
       await _reloadMinutesList();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       Get.back();
       _showSuccess('تم تحديث الضبط');
       return true;
@@ -183,6 +190,9 @@ class MinuteController extends GetxController {
     try {
       await _api.delete('${AppConstants.minutes}/$id');
       await _reloadMinutesList();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('تم حذف الضبط');
       return true;
     } catch (e) {
@@ -195,6 +205,9 @@ class MinuteController extends GetxController {
     try {
       await _api.post('${AppConstants.minutes}/$id/archive');
       await _reloadMinutesList();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('تم أرشفة الضبط');
     } catch (e) {
       _showError(e);
@@ -205,6 +218,9 @@ class MinuteController extends GetxController {
     try {
       await _api.post('${AppConstants.minutes}/$id/unarchive');
       await _reloadMinutesList();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       _showSuccess('تم إلغاء أرشفة الضبط');
     } catch (e) {
       _showError(e);
@@ -216,6 +232,9 @@ class MinuteController extends GetxController {
     try {
       await _api.post('${AppConstants.minutes}/$id/star');
       await _reloadMinutesList();
+      if (Get.isRegistered<DashboardController>()) {
+        Get.find<DashboardController>().refreshDashboard();
+      }
       if (selectedMinute.value?.id == id) {
         await fetchMinuteById(id);
       }
